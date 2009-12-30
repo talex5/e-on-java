@@ -1,6 +1,19 @@
 Help on installing and running E
 
 
+* This is the E-core package, a stripped-down version of the E distribution
+* with just the core language runtime. It has been packaged for Zero Install
+* and should therefore not require any manual installation steps. It probably
+* doesn't work on Windows.
+*
+* According to the web-site, "All licenses are Mozilla or Mozilla compatible
+* open source licenses."
+*
+* Thomas Leonard, 2009-12-30
+*
+* The instructions below are out-of-date...
+
+
                          Installing E
 
 
