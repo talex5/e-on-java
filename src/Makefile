@@ -8,7 +8,7 @@
 default: draft explain
 
 # Prefix tagging this release's attributes
-PREFIX=E
+PREFIX=E-core
 DOTVER=0.9.2b
 TAGVER=0_9_2b
 RELEASE=working
@@ -33,9 +33,9 @@ targdir-clobber:
 
 setup:
 	-rm -rf $(TOP)/dist
-	mkdir -p $(TOP)/dist/bin
+	mkdir -p $(TOP)/dist
 	mkdir -p $(TOP)/dist/0install
-	cp -rf $(TOP)/src/bin/icons $(TOP)/dist/bin
+	#cp -rf $(TOP)/src/bin/icons $(TOP)/dist/bin
 ifneq "$(OSDIR)" "posix"
 	cp -rf $(TOP)/src/bin/$(OSDIR) $(TOP)/dist/bin
 endif
@@ -56,16 +56,16 @@ endif
 	@echo "------------------"
 	@echo ""
 	echo $(DOTVER) > $(TOP)/dist/eVersion.txt
-	cp -rf $(TOP)/src/esrc/scripts $(TOP)/dist/scripts
-	cp -rf $(TOP)/src/elisp/* $(TOP)/dist/scripts
-	cp -rf $(TOP)/src/esrc/caplets $(TOP)/dist/caplets
+	#cp -rf $(TOP)/src/esrc/scripts $(TOP)/dist/scripts
+	#cp -rf $(TOP)/src/elisp/* $(TOP)/dist/scripts
+	#cp -rf $(TOP)/src/esrc/caplets $(TOP)/dist/caplets
 	-rm -rf `find $(TOP)/dist -name CVS`
 
 export:
 	-rm -rf $(TOP)/export
 	mkdir -p $(TOP)/export/e
 	cp -rf $(TOP)/dist $(TOP)/export/dist
-	cp -rf $(TOP)/src $(TOP)/export/e/src
+	#cp -rf $(TOP)/src $(TOP)/export/e/src
 	-rm -rf $(TOP)/export/e/src/ePrograms
 	# remove edoc because it's SCSL, not open source
 	-rm -rf $(TOP)/export/e/src/jsrc15/com/combex/e/edoc
@@ -118,6 +118,9 @@ export:
 	$(STLE) $(TOP)/src/esrc/scripts/substProps.e \
 		$(TOP)/export/puredist/eprops-template.txt \
 		e.version=$(DOTVER)
+	rm -rf $(TOP)/export/dist/bin
+	rm -rf $(TOP)/export/dist/caplets
+	rm -rf $(TOP)/export/dist/scripts
 
 
 # addressed in the tarballs directory from the export directory
@@ -135,7 +138,7 @@ tarballs:
 	$(STLE) $(TOP)/src/esrc/scripts/newlines.e \
 		--unix --onlyKnown $(TOP)/export
 	# There is now just one source distribution
-	(cd $(TOP)/export; tar czf $(UPFIX1)-src-$(DOTVER).tar.gz e)
+	#(cd $(TOP)/export; tar czf $(UPFIX1)-src-$(DOTVER).tar.gz e)
 ifneq "$(OSDIR)" "posix"
  ifneq "$(MACHTYPE)" "unknown"
 	# If we're making on an unrecognized OS or machine, then we
@@ -155,7 +158,7 @@ endif
 	# Make the Pure-Java binary distribution under the assumption
 	# of a Posix-like target.  We build this distribution
 	# regardless of what platform we're building on.
-	(cd $(TOP)/export/puredist; tar czf $(UPFIX2)-purej-$(DOTVER).tar.gz .)
+	(cd $(TOP)/export/dist; tar cjf $(UPFIX2)-$(DOTVER).tar.bz2 .)
 
 
 ckversion:
