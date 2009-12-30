@@ -8,7 +8,7 @@
 default: draft explain
 
 # Prefix tagging this release's attributes
-PREFIX=E
+PREFIX=E-core
 DOTVER=0.9.2b
 TAGVER=0_9_2b
 RELEASE=working
@@ -33,10 +33,10 @@ targdir-clobber:
 
 setup:
 	-rm -rf $(TOP)/dist
-	mkdir -p $(TOP)/dist/bin
-	cp -rf $(TOP)/src/bin/icons $(TOP)/dist/bin
+	mkdir -p $(TOP)/dist
+	#cp -rf $(TOP)/src/bin/icons $(TOP)/dist/bin
 ifneq "$(OSDIR)" "posix"
-	cp -rf $(TOP)/src/bin/$(OSDIR) $(TOP)/dist/bin
+	#cp -rf $(TOP)/src/bin/$(OSDIR) $(TOP)/dist/bin
 endif
 	@echo ""
 	@echo "------------------"
@@ -55,16 +55,16 @@ endif
 	@echo "------------------"
 	@echo ""
 	echo $(DOTVER) > $(TOP)/dist/eVersion.txt
-	cp -rf $(TOP)/src/esrc/scripts $(TOP)/dist/scripts
-	cp -rf $(TOP)/src/elisp/* $(TOP)/dist/scripts
-	cp -rf $(TOP)/src/esrc/caplets $(TOP)/dist/caplets
+	#cp -rf $(TOP)/src/esrc/scripts $(TOP)/dist/scripts
+	#cp -rf $(TOP)/src/elisp/* $(TOP)/dist/scripts
+	#cp -rf $(TOP)/src/esrc/caplets $(TOP)/dist/caplets
 	-rm -rf `find $(TOP)/dist -name CVS`
 
 export:
 	-rm -rf $(TOP)/export
 	mkdir -p $(TOP)/export/e
 	cp -rf $(TOP)/dist $(TOP)/export/dist
-	cp -rf $(TOP)/src $(TOP)/export/e/src
+	#cp -rf $(TOP)/src $(TOP)/export/e/src
 	-rm -rf $(TOP)/export/e/src/ePrograms
 	# remove edoc because it's SCSL, not open source
 	-rm -rf $(TOP)/export/e/src/jsrc15/com/combex/e/edoc
@@ -99,24 +99,9 @@ export:
 	-rm -rf `find $(TOP)/export/e -name '*.ilk'`
 	-rm -rf `find $(TOP)/export/e -name '*.pdb'`
 	-rm -rf `find $(TOP)/export/e/src/csrc -name '*.a'`
-	cp -rf $(TOP)/export/dist $(TOP)/export/puredist
-	rm -rf $(TOP)/export/puredist/bin/$(OSDIR)
-	$(STLE) $(TOP)/src/esrc/scripts/substProps.e \
-		$(TOP)/export/dist/eprops-template.txt \
-		e.version=$(DOTVER) \
-		e.osdir=$(OSDIR) \
-		e.machdir=$(MACHDIR)
-	$(STLE) $(TOP)/src/esrc/scripts/substProps.e \
-		$(TOP)/export/dist/rune-template.txt \
-		e.osdir=$(OSDIR) \
-		e.machdir=$(MACHDIR)
-	$(STLE) $(TOP)/src/esrc/scripts/substProps.e \
-		$(TOP)/export/dist/devrune-template.txt \
-		e.osdir=$(OSDIR) \
-		e.machdir=$(MACHDIR)
-	$(STLE) $(TOP)/src/esrc/scripts/substProps.e \
-		$(TOP)/export/puredist/eprops-template.txt \
-		e.version=$(DOTVER)
+	rm -rf $(TOP)/export/dist/bin
+	rm -rf $(TOP)/export/dist/caplets
+	rm -rf $(TOP)/export/dist/scripts
 
 
 # addressed in the tarballs directory from the export directory
@@ -131,30 +116,15 @@ tarballs:
 	mkdir -p $(TOP)/tarballs
 	# We now just normalize all newlines, regardless of target
 	# platform. 
-	$(STLE) $(TOP)/src/esrc/scripts/newlines.e \
-		--unix --onlyKnown $(TOP)/export
+	#$(STLE) $(TOP)/src/esrc/scripts/newlines.e \
+	#	--unix --onlyKnown $(TOP)/export
 	# There is now just one source distribution
-	(cd $(TOP)/export; tar czf $(UPFIX1)-src-$(DOTVER).tar.gz e)
-ifneq "$(OSDIR)" "posix"
- ifneq "$(MACHTYPE)" "unknown"
-	# If we're making on an unrecognized OS or machine, then we
-	# don't make any platform-specific binary distribution.
-	# Otherwise, we make the platform-specific binary distribution
-	# for our current platform. We do *not* do any cross-building
-	# between platforms.
-  ifeq "$(OSDIR)" "win32"
-	# If the target platform is win32, then package the binary
-	# distribution as a zip file, else as a tarball.
-	(cd $(TOP)/export/dist; zip -rqD $(UPFIX2)-$(SUFFIX).zip .)
-  else
-	(cd $(TOP)/export/dist; tar czf $(UPFIX2)-$(SUFFIX).tar.gz .)
-  endif
- endif
-endif
+	#(cd $(TOP)/export; tar czf $(UPFIX1)-src-$(DOTVER).tar.gz e)
+
 	# Make the Pure-Java binary distribution under the assumption
 	# of a Posix-like target.  We build this distribution
 	# regardless of what platform we're building on.
-	(cd $(TOP)/export/puredist; tar czf $(UPFIX2)-purej-$(DOTVER).tar.gz .)
+	(cd $(TOP)/export/dist; tar cjf $(UPFIX2)-$(DOTVER).tar.bz2 .)
 
 
 ckversion:

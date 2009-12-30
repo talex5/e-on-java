@@ -14,9 +14,11 @@ all:
 SLFTTFT=sacrificial-long-file-name-to-test-for-truncation.txt
 
 install:
-	cp rune-template.txt devrune-template.txt $(TOP)/dist/
+	#cp rune-template.txt devrune-template.txt $(TOP)/dist/
+	cp rune $(TOP)/dist/
 	cp rune-bat-template.txt $(TOP)/dist/
 	cp eprops-template.txt $(SLFTTFT) $(TOP)/dist/
+	cp e-core.xml $(TOP)/dist/
 	cp README.txt updoc-hash-cache.txt $(TOP)/dist/
-	cp inst-e.bash $(TOP)/dist/
+	#cp inst-e.bash $(TOP)/dist/
 	$(STLE) --help > $(TOP)/dist/rune-help.txt
