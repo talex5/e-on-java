@@ -1,0 +1,116 @@
+# Copyright University of Southampton IT Innovation Centre, 2010,
+# under the terms of the MIT X license, available from
+# http://www.opensource.org/licenses/mit-license.html
+
+pragma.syntax("0.9")
+
+def first__quasiParser := <import:org.erights.e.tools.text.first__quasiParser>
+
+# (from java.sql.Types)
+def BINARY 		:= -2
+def VARBINARY 		:= -3
+
+def makeSql__quasiParser(connection) {
+	def valueMaker(var template :String) {
+		def upper := template.toUpperCase()
+		def query := upper.startsWith("SELECT ") || upper.startsWith("CALL ")
+
+		var currentHole := 0
+		var preparedTemplate := ""
+
+		# Based on quasiparser examples supplied with E
+		while (template =~ first`@left[$$@@]@right`) {
+			preparedTemplate += left
+			switch (right) {
+				match [chr] {
+					throw(`Ends with a $chr!`)
+				}
+				match [chr, ==chr] + rest {
+					preparedTemplate += right(0,1)
+					template := rest
+				}
+				match [=='$', =='{'] + rest {
+					def closer := rest.startOf("}")
+					if (closer < 0) {
+						throw("Bad dollar hole: " + right)
+					}
+					require(__makeInt(rest(0, closer)) == currentHole)
+					currentHole += 1
+					preparedTemplate += "?"
+					template := rest(closer + 1)
+				}
+			}
+		}
+		preparedTemplate += template
+
+		def preparedStatement := connection.prepareStatement(preparedTemplate)
+
+		return def sqlValue {
+			to substitute(values) {
+				def metadata := preparedStatement.getParameterMetaData()
+				for i => v in values {
+					def columnType := metadata.getParameterType(i + 1)
+					if (v == null) {
+						preparedStatement.setNull(i + 1, columnType)
+					} else if (v =~ s :String) {
+						# Strings work with setObject but Twine doesn't, so call setString.
+						preparedStatement.setString(i + 1, s)
+					} else {
+						#traceln(`$i => $v ($columnType)`)
+						switch (columnType) {
+							match == BINARY    { preparedStatement.setBytes(i + 1, v) }
+							match == VARBINARY { preparedStatement.setBytes(i + 1, v) }
+							match _		   { preparedStatement.setObject(i + 1, v) }
+						}
+					}
+				}
+				if (query) {
+					def rs := preparedStatement.executeQuery()
+					def columns := rs.getMetaData().getColumnCount()
+					return def sqlResults {
+						to iterate(cb) {
+							try {
+								var i := 0
+								while (rs.next()) {
+									def results := [].diverge()
+									for c in 1..columns {
+										results.push(rs.getObject(c))
+									}
+									cb(i, results.snapshot())
+									i += 1
+								}
+							} finally {
+								rs.close()
+							}
+						}
+
+						to singleton(ifMissing) {
+							for row in sqlResults {
+								require(!rs.next(), `multiple rows returned by "$preparedTemplate"`)
+								return row
+							}
+							return ifMissing()
+						}
+
+						to singleton() {
+							return sqlResults.singleton(fn { throw(`no rows returned by "$preparedTemplate"`) })
+						}
+					}
+				} else {
+					return preparedStatement.executeUpdate()
+				}
+			}
+		}
+	}
+
+	def cache := [].asMap().diverge()
+
+	return def sql__quasiParser {
+		to valueMaker(template :String) {
+			if (cache.fetch(template, fn {}) =~ x :notNull) {
+				return x
+			}
+			return cache[template] := valueMaker(template)
+		}
+	}
+}
