@@ -12,7 +12,7 @@ Create an in-memory relational database using HSQLDB (http://hsqldb.org/):
 Wrap it with an SQL quasi-parser:
 
 ? def makeSql__quasiParser :=
->                  <import:org.erights.e.tools.database.makeSql__quasiParser>
+>                  <import:org.erights.e.tools.database.makeSQLQuasiParser>
 ? def sql__quasiParser := makeSql__quasiParser(connection)
 # value: <sql__quasiParser>
 
