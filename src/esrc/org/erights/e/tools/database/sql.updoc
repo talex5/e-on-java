@@ -93,11 +93,6 @@ This means we don't have to worry about quoting:
 ? sql`SELECT userName FROM users WHERE karma = -6`.singleton()
 # value: ["$@"]
 
-? sql`SELECT FROM users WHERE userName=$`
-# problem: Ends with a $!
-? sql`SELECT FROM users WHERE userName=@`
-# problem: Ends with a @!
-
 (for testing, we're going to change the type of a column; this seems to upset
 hsqldb if you keep the connection open)
 
