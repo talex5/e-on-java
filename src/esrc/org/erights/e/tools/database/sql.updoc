@@ -93,6 +93,14 @@ This means we don't have to worry about quoting:
 ? sql`SELECT userName FROM users WHERE karma = -6`.singleton()
 # value: ["$@"]
 
+The results of a query can only be used once:
+
+? def rs := sql`SELECT userName FROM users WHERE karma = -6`
+? rs.singleton()
+# value: ["$@"]
+? rs.singleton()
+# problem: <SQLException: invalid cursor state: identified cursor is not open>
+
 (for testing, we're going to change the type of a column; this seems to upset
 hsqldb if you keep the connection open)
 
