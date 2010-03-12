@@ -71,6 +71,9 @@ def seedVatAuthor(<unsafe>) :near {
          * The privSrc is evaluated as a single expression, not as a series of
          * expressions. The <tt>interp</tt> it has in scope responds only to
          * the getProps() message.
+         * <p>
+         * If thisDir is not null, <this> is added to the top-level scope,
+         * allowing emakers to be imported from this directory.
          *
          * @return A remote promise for the value of the expression.
          *         This promise is an inter-vat reference using the
@@ -78,29 +81,47 @@ def seedVatAuthor(<unsafe>) :near {
          *         PassByProxy or DeepPassByCopy, or an error will result in
          *         trying to resolve the promise.
          */
-        to run(vat :Vat, privSrc :String) :rcvr {
+        to run(vat :Vat, privSrc :String, thisDir :nullOk[near]) :rcvr {
             def bootstrapCode := `
-                def eval(privSrc :String) {
+                def eval(privSrc :String, thisPath :nullOk[String]) {
                     def eParser := <elang:syntax.makeEParser>
                     def runeAuthor := <elang:cmd.runeAuthor>
                     def auths := runeAuthor.defaultAuths(<unsafe>)
                     def makeScopeSetup :=
                       <unsafe:org.erights.e.elang.interp.makeScopeSetup>
 
-                    def privScope := makeScopeSetup.privileged("__main$$",
+                    var privScope := makeScopeSetup.privileged("__main$$",
                                                                auths["metain"],
                                                                auths["metaout"],
                                                                auths["metaerr"],
                                                                interp.getProps(),
                                                                interp,
                                                                null)
+
+                    if (thisPath != null) {
+                        def <this> := <elang:evm.ELoaderAuthor>(<file>[thisPath],
+                                                                [ => <this> ],
+                                                                "__main$$")
+                        privScope := privScope.with("this__uriGetter", <this>)
+                    }
+
                     def privExpr := eParser(privSrc)
                     return privExpr.eval(privScope)
                 }
             `
             def auths := runeAuthor.defaultAuths(<unsafe>)
             def eval := vat.seed(makeVatSeeder(bootstrapCode, auths["defaultProps"]))
-            return eval <- (privSrc)
+            def thisPath := if (thisDir != null) {
+                thisDir.getAbsolutePath()
+            } else {
+                null
+            }
+            return eval <- (privSrc, thisPath)
+        }
+
+        /** Like run/3, but with thisDir as null. */
+        to run(vat :Vat, privSrc :String) :rcvr {
+            return seedVat(vat, privSrc, null)
         }
 
         /**
@@ -108,7 +129,7 @@ def seedVatAuthor(<unsafe>) :near {
          */
         to run(privSrc :String) :Tuple[rcvr, Vat] {
             def vat := makeVat.make("headless", "newSeedVat")
-            return [seedVat(vat, privSrc), vat]
+            return [seedVat(vat, privSrc, null), vat]
         }
 
         /**
