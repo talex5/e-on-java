@@ -61,7 +61,7 @@ Other E options:
      *
      */
     to run(auths) :near {
-
+        def <file> := auths["file__uriGetter"]
         /**
          *
          */
@@ -91,7 +91,8 @@ Other E options:
                     makeVat.make(optRunnerKind, `evaling $name`)
                 }
 
-                def startReplRcvr := seedVat(replVat, "<elang:launcher.makeEvalSetup>(<unsafe>)")
+                def srcDir := <file>[<file>[fname].getParent()]
+                def startReplRcvr := seedVat(replVat, "<elang:launcher.makeEvalSetup>(<unsafe>, <this>)", srcDir)
                 return startReplRcvr <- run(options, props, isInteractive, args, parseFunc)
             }
 
@@ -117,7 +118,7 @@ Other E options:
                     makeVat.make(optRunnerKind, `evaling source`)
                 }
 
-                def startReplRcvr := seedVat(replVat, "<elang:launcher.makeEvalSetup>(<unsafe>)")
+                def startReplRcvr := seedVat(replVat, "<elang:launcher.makeEvalSetup>(<unsafe>, <this>)", <file:.>)
                 return startReplRcvr <- run(options, props, isInteractive, args, parseFunc)
             }
         }

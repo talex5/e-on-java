@@ -99,9 +99,9 @@ def seedVatAuthor(<unsafe>) :near {
                                                                null)
 
                     if (thisPath != null) {
-                        def <this> := <elang:evm.ELoaderAuthor>(<file>[thisPath],
-                                                                [ => <this> ],
-                                                                "__main$$")
+                        def makeTraceln := <unsafe:org.erights.e.elib.debug.makeTraceln>
+                        def makeELoader := <elang:interp.ELoaderAuthor>(makeTraceln)
+                        def <this> := makeELoader(<file>[thisPath], [ => <this> ], "__main$$")
                         privScope := privScope.with("this__uriGetter", <this>)
                     }
 
