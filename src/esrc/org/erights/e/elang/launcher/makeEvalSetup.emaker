@@ -13,21 +13,28 @@ def makeEvalPrinterAuthor := <elang:cmd.makeEvalPrinterAuthor>
 def makeEvalContextAuthor := <elang:cmd.makeEvalContextAuthor>
 def argParser := <import:org.erights.e.tools.args.argParser>
 
-def makeEvalSetup(<unsafe>) {
+def makeEvalSetup(<unsafe>, var thisLoader) {
     def auths := runeAuthor.defaultAuths(<unsafe>)
     def makeVat := auths["makeVat"]
 
-    return def startRepl(options, props :Map, isInteractive :boolean, receivedArgs :List, parseFunc :rcvr) :vow[boolean] {
+    return def startRepl(options, props :Map, isInteractive :boolean,
+                         receivedArgs :List, parseFunc :rcvr) :vow[boolean] {
         def isConfined :=
           argParser.getFlag("--confine", options, false)
         def isExplicit :=
           argParser.getFlag("--explicitIO", options, false)
 
+        if (isConfined) {
+            # If you run a .emaker, it cannot access other files by default
+            thisLoader := null
+        }
+
         def makeEvalContext := makeEvalContextAuthor(auths,
                                                      options,
                                                      makeVat.getCurrentVat(),
                                                      isConfined,
-                                                     isExplicit)
+                                                     isExplicit,
+                                                     thisLoader)
 
         def makeEvalPrinter :=
           makeEvalPrinterAuthor(auths["systemGC"],
