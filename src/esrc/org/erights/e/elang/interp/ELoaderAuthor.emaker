@@ -47,8 +47,9 @@ def extendEnv(scope, envExtras :Map[String,any]) {
 # authority, but this is not enforced. Typically, they are all E loaders
 # themselves, giving modules access to their dependencies.
 def loaderAuthor(makeTraceln) {
-    return def makeLoader(sourceDir, envExtras :Map, fqnPrefix :String) {
+    return def makeLoader(var sourceDir, envExtras :Map, fqnPrefix :String) {
         #traceln(`creating loader for $fqnPrefix from $sourceDir`)
+        sourceDir := sourceDir.deepReadOnly()
 
         # Contains the mappings in envExtras, but doesn't contain
         # an updated traceln.
@@ -88,12 +89,18 @@ def loaderAuthor(makeTraceln) {
                 return eParser(src).eval(makeFileScope(extendedSafeScope, name))
             }
 
+            /** Like get/1, but evaluate in an extension of baseScope rather than of safeScope. */
             to getWithBase(pathName, baseScope) {
                 def i := pathName.lastIndexOf1('.')
                 def name := pathName(0, i)
                 def src := sourceDir[pathName].getTwine()
                 def extendedBaseScope := extendEnv(baseScope, envExtras)
                 return eParser(src).eval(makeFileScope(extendedBaseScope, name))
+            }
+
+            /** Get the (readonly) source directory. This is useful for loading icons, help files, etc. */
+            to getRoot() {
+                return sourceDir
             }
         }
     }
