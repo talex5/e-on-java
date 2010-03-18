@@ -99,7 +99,7 @@ The results of a query can only be used once:
 ? rs.singleton()
 # value: ["$@"]
 ? rs.singleton()
-# problem: <SQLException: invalid cursor state: identified cursor is not open>
+# problem: an SQL result set can only be used once
 
 As a convenience, we can get all the results as a list too:
 

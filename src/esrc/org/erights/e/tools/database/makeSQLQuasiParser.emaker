@@ -50,7 +50,7 @@ def makeSql__quasiParser(connection) {
                     }
                 }
                 if (query) {
-                    def rs := pstmt.executeQuery()
+                    var rs := pstmt.executeQuery()
                     def columns := rs.getMetaData().getColumnCount()
                     return def sqlResults {
                         to iterate(cb) {
@@ -66,6 +66,7 @@ def makeSql__quasiParser(connection) {
                                 }
                             } finally {
                                 rs.close()
+                                rs := Ref.broken("an SQL result set can only be used once")
                             }
                         }
 
