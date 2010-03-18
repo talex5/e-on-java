@@ -1,3 +1,5 @@
+# This is A.emaker
+
 traceln(`myObject == $myObject`)
 
 def obj {

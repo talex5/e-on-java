@@ -47,3 +47,13 @@ Ask the object to load something else, via its <this> loader:
 
 ? b.__getAllegedType().getFQName()
 # value: "updoc$test/B$objB"
+
+The loader can also be used to load other resources (e.g. icons, text files):
+
+? def <moduleDir> := <this>.getRoot()
+? <moduleDir:test/A.emaker>.getText().split("\n")[0]
+# value: "# This is A.emaker"
+
+However, it doesn't grant write access:
+? <moduleDir:new.txt>.setText("fails")
+# problem: <NoSuchMethodException: <a ReadOnlyFile>.setText/1>
