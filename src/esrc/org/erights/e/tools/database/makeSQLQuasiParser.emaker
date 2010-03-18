@@ -83,6 +83,14 @@ def makeSql__quasiParser(connection) {
                                 `no rows returned by "$ptmpl"`)
                             })
                         }
+
+                        to asList() :List[List] {
+                            def results := [].diverge()
+                                for row in sqlResults {
+                                    results.push(row)
+                                }
+                            return results.snapshot()
+                        }
                     }
                 } else {
                     return pstmt.executeUpdate()

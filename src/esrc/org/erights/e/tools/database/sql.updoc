@@ -101,6 +101,11 @@ The results of a query can only be used once:
 ? rs.singleton()
 # problem: <SQLException: invalid cursor state: identified cursor is not open>
 
+As a convenience, we can get all the results as a list too:
+
+? sql`SELECT id, karma FROM users WHERE karma >= 0 ORDER BY id ASC`.asList()
+# value: [[0, 1], [1, 0], [2, 0]]
+
 (for testing, we're going to change the type of a column; this seems to upset
 hsqldb if you keep the connection open)
 
