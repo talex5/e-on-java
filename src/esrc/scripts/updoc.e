@@ -59,7 +59,7 @@ def printBlock(keyword, str, out) :void {
  * @return A <tt>vow</tt> that becomes <tt>null</tt> on success or
  *         becomes broken with a problem
  */
-def parseAndPlay(source :Twine, hash :int, evalServerPool :rcvr, out) :vow {
+def parseAndPlay(source :Twine, hash :int, evalServerPool :rcvr, thisPath :nullOk[String], out) :vow {
     try {
         def oldUpdocParser := makeOldUpdocParser(source)
         def script := oldUpdocParser.readScript()
@@ -68,7 +68,7 @@ def parseAndPlay(source :Twine, hash :int, evalServerPool :rcvr, out) :vow {
             null
         } else {
             def player := makeScriptPlayer(script)
-            player.replay(evalServerPool, [], interp.getProps(), out)
+            player.replay(evalServerPool, [], interp.getProps(), thisPath, out)
         }
     } catch problem {
         if (problem.leaf() =~ sex :SyntaxException) {
@@ -148,7 +148,7 @@ def updocOne(file, path, evalServerPool, out) :vow {
         # to pass source info through (preserving twine-ness), then
         # switch from getText() to getTwine()
         def source := file.getTwine()
-        parseAndPlay(source, hash, evalServerPool, out)
+        parseAndPlay(source, hash, evalServerPool, file.getParent(), out)
     } else if (endsWithAny(path, [".html", ".htm"]) || htmlAnyway(file, out)) {
         out.lnPrint(`$path:`)
         def html := file.getTwine()
@@ -159,7 +159,7 @@ def updocOne(file, path, evalServerPool, out) :vow {
             out.indent("#                  ").print(problem)
             return null
         }
-        parseAndPlay(source, hash, evalServerPool, out)
+        parseAndPlay(source, hash, evalServerPool, file.getParent(), out)
     } else {
         if (__makeMap.testProp(interp.getProps(), "updoc.verbose")) {
             out.lnPrint(`ignoring $path`)
