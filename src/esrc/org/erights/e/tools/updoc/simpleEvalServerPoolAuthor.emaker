@@ -15,6 +15,10 @@ def simpleEvalServerPoolAuthor(<unsafe>) :near {
 
     def simpleEvalServerPool {
 
+        to requestEvalServerSet(vatNames :List[String]) :vow {
+            return simpleEvalServerPool.requestEvalServerSet(vatNames, null)
+        }
+
         /**
          * <tt>requestEvalServerSet</tt> tries to satisfy a request for
          * access to multiple eval servers.
@@ -26,9 +30,10 @@ def simpleEvalServerPoolAuthor(<unsafe>) :near {
          * the client is responsible for rescheduling the request.
          *
          * @param vatNames Names of vats for eval servers requested.
+         * @param thisPath directory to use for <this> loader, if any.
          * @return A vow for the set of eval servers requested.
          */
-        to requestEvalServerSet(vatNames :List[String]) :vow {
+        to requestEvalServerSet(vatNames :List[String], thisPath :nullOk[String]) :vow {
             var result := []
             for i => vatName in vatNames {
                 def runnerKind := switch (vatName) {
@@ -38,18 +43,27 @@ def simpleEvalServerPoolAuthor(<unsafe>) :near {
                 }
                 def vat := makeVat.make(runnerKind, vatName)
                 def makeEvaluator :rcvr := seedVat(vat, `
+def _(thisPath :String) {
+    def makeEvaluatorAuthor :=
+      <import:org.erights.e.tools.updoc.makeEvaluatorAuthor>
+    def runeAuthor := <elang:cmd.runeAuthor>
+    def auths := runeAuthor.defaultAuths(<unsafe>)
+    def thisLoader := if (thisPath == null) {
+        null
+    } else {
+        def makeTraceln := <unsafe:org.erights.e.elib.debug.makeTraceln>
+        def makeELoader := <elang:interp.ELoaderAuthor>(makeTraceln)
+        makeELoader(<file>[thisPath], [ "this__uriGetter" => thisLoader ], "updoc$$")
+    }
 
-def makeEvaluatorAuthor :=
-  <import:org.erights.e.tools.updoc.makeEvaluatorAuthor>
-def runeAuthor := <elang:cmd.runeAuthor>
-def auths := runeAuthor.defaultAuths(<unsafe>)
-
-makeEvaluatorAuthor(auths["systemGC"],
-                    auths,
-                    [].asMap(),
-                    currentVat)
-
-                    `)
+    return makeEvaluatorAuthor(
+                        auths["systemGC"],
+                        auths,
+                        [].asMap(),
+                        currentVat,
+                        thisLoader)
+}
+                    `) <- (thisPath)
                 result += [makeEvaluator]
             }
             result
