@@ -15,12 +15,13 @@ def makeEvalContextAuthor(auths,
                           options,
                           replVat,
                           isConfined :boolean,
-                          isExplicit :boolean) :near {
+                          isExplicit :boolean,
+                          thisLoader :nullOk[near]) :near {
 
     def makeScope(altin, altout, alterr, props, cmdLoop) :near {
         def fqnPrefix := options.fetch("--fqnPrefix", fn{"__main$"})
         def makeScopeSetup := auths["makeScopeSetup"]
-        if (isConfined) {
+        def baseScope := if (isConfined) {
             makeScopeSetup.safeScope(fqnPrefix)
         } else {
             makeScopeSetup.privileged(fqnPrefix,
@@ -30,6 +31,11 @@ def makeEvalContextAuthor(auths,
                                       props,
                                       cmdLoop,
                                       replVat)
+        }
+        if (thisLoader == null) {
+            return baseScope
+        } else {
+            return baseScope.with("this__uriGetter", thisLoader)
         }
     }
 
