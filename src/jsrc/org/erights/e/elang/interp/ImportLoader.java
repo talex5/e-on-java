@@ -210,7 +210,7 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
 //            isConfinedPtr[0] = Ref.isDeepFrozen(result);
             // XXX Leave it this way for now until we figure out the caching
             // issue.
-            isConfinedPtr[0] = false;
+            isConfinedPtr[0] = true;
             return result;
         }
 

@@ -128,7 +128,7 @@ public abstract class EExpr extends ENode {
      *         ScopeLayout, and <li>the number of locals it needs to evaluate.
      *         </ul>
      */
-    static private Object[] transform(EExpr self, ScopeLayout scopeLayout) {
+    static public Object[] transform(EExpr self, ScopeLayout scopeLayout) {
         Object[] args = {self, scopeLayout};
         return (Object[])((ConstList)OurTransformer.run(args)).getArray();
     }
@@ -149,6 +149,16 @@ public abstract class EExpr extends ENode {
     static private Object eval(EExpr self, Scope scope, int maxLocals) {
         EvalContext ctx = scope.newContext(maxLocals);
         return Ref.resolution(self.subEval(ctx, true));
+    }
+
+    /**
+     * Used to evaluate this expression in a scope to a value.
+     */
+    public Object showTransformed(Scope scope) {
+        ScopeLayout oldLayout = scope.getScopeLayout();
+        Object[] triple = transform(this, oldLayout);
+        EExpr realExpr = (EExpr)triple[0];
+        return realExpr;
     }
 
     /**
