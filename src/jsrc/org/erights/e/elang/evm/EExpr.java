@@ -38,6 +38,7 @@ import org.erights.e.elib.util.OneArgFunc;
 import org.erights.e.meta.java.math.EInt;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 
 /**
  * Those ParseNodes that--after expansion--define the kernel expressions
@@ -82,6 +83,12 @@ public abstract class EExpr extends ENode {
         public Object[] getSpreadUncall() {
             T.fail("XXX not yet implemented");
             return null; //make compiler happy
+        }
+    }
+
+    static private class GeneratedClassLoader extends ClassLoader {
+        public Class defineClass(byte[] code) {
+            return defineClass("Test", code, 0, code.length);
         }
     }
 
@@ -151,14 +158,20 @@ public abstract class EExpr extends ENode {
         return Ref.resolution(self.subEval(ctx, true));
     }
 
-    /**
-     * Used to evaluate this expression in a scope to a value.
-     */
-    public Object showTransformed(Scope scope) {
+    public Object compile(Scope scope, Object compiler) {
         ScopeLayout oldLayout = scope.getScopeLayout();
         Object[] triple = transform(this, oldLayout);
-        EExpr realExpr = (EExpr)triple[0];
-        return realExpr;
+        Scope newScope = scope.update((ScopeLayout)triple[1]);
+        final byte[] code = (byte[]) E.callAll(compiler, "run", triple);
+
+        GeneratedClassLoader loader = new GeneratedClassLoader();
+        Class generated = loader.defineClass(code);
+        try {
+            Constructor cons = generated.getConstructor(new Class[] {Scope.class});
+            return cons.newInstance(new Object[] {newScope});
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     /**
