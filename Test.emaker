@@ -1,3 +1,3 @@
-#def x := "Compiled var`"
-#traceln(x)
-traceln("Hi")
+def x := "Compiled var!"
+traceln(x)
+#traceln("Hi")

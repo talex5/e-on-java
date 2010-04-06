@@ -5,3 +5,10 @@ all: Test.class
 	#./jad/jad Test.class
 	#cat Test.jad
 	#rune -cpa . run.e
+
+.PHONY: jad
+
+jad:
+	rm -f Test.jad
+	./jad/jad Test.class
+	cat Test.jad
