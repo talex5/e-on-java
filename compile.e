@@ -1,3 +1,4 @@
+def ObjectExpr := <type:org.erights.e.elang.evm.ObjectExpr>
 def FinalPattern := <type:org.erights.e.elang.evm.FinalPattern>
 def VarPattern := <type:org.erights.e.elang.evm.VarPattern>
 def OuterNounExpr := <type:org.erights.e.elang.evm.OuterNounExpr>
@@ -26,17 +27,27 @@ def max(a, b) {
 	}
 }
 
+var nInner := 0
+def innerClasses := [].diverge()
+
+def queueCompileInnerClass(objExpr) {
+	def name := `e/generated/inner${nInner}`
+	nInner += 1
+	innerClasses.push([name, objExpr])
+	return name
+}
+
 def eval
 
-def evalGuard(mw, guard, value) {
+def evalGuard(mw, guard, valueMaker) {
 	if (guard == null) {
-		return eval(mw, value)
+		return valueMaker()
 	}
 
 	#E.call(foo, "coerce", specimen, optEjector);
 	def guardStack := eval(mw, guard)
 	mw.visitLdcInsn("coerce");
-	def maxStack := 2 + eval(mw, value) + 1
+	def maxStack := 2 + valueMaker() + 1
 	mw.visitInsn(<op:ACONST_NULL>)	# XXX
 	mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "call",
 		"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
@@ -46,10 +57,10 @@ def evalGuard(mw, guard, value) {
 }
 
 # => slot, value
-def evalMakeSlot(mw, pattern, value) {
+def evalMakeSlot(mw, pattern, valueMaker) {
 	def guard := pattern.getOptGuardExpr()
 
-	def valueStack := evalGuard(mw, guard, value)
+	def valueStack := evalGuard(mw, guard, valueMaker)
 
 	# Package top-most value in a slot
 	def slotType := switch (pattern) {
@@ -113,7 +124,7 @@ def evalIf(mw, ifExpr) {
 	return max(max(testStack, thenStack), elseStack)
 }
 
-def evalDef(mw, pattern, value) {
+def evalDefInteral(mw, pattern, valueMaker) {
 	def guard := pattern.getOptGuardExpr()
 	def noun := pattern.getNoun()
 	traceln(`def $noun (${noun.__getAllegedType()})`)
@@ -121,7 +132,7 @@ def evalDef(mw, pattern, value) {
 		match lNoun :LocalFinalNounExpr {
 			pattern :FinalPattern
 			def i := lNoun.getIndex()
-			def valueStack := evalGuard(mw, guard, value)
+			def valueStack := evalGuard(mw, guard, valueMaker)
 			mw.visitInsn(<op:DUP>)
 			mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
 			return valueStack
@@ -132,7 +143,7 @@ def evalDef(mw, pattern, value) {
 			mw.visitVarInsn(<op:ALOAD>, 0);
 			mw.visitFieldInsn(<op:GETFIELD>, "Test", "context", "Lorg/erights/e/elang/scope/EvalContext;")
 			# push(new Slot(value))
-			def stackSlot := evalMakeSlot(mw, pattern, value)
+			def stackSlot := evalMakeSlot(mw, pattern, valueMaker)
 			# stack: context, slot, value
 			mw.visitInsn(<op:DUP_X2>)
 			mw.visitInsn(<op:POP>)
@@ -148,6 +159,26 @@ def evalDef(mw, pattern, value) {
 			return 70
 		}
 	}
+}
+
+def evalDef(mw, pattern, value) {
+	return evalDefInteral(mw, pattern, fn { eval(mw, value) })
+}
+
+def evalObjectDef(mw, objExpr) {
+	return evalDefInteral(mw, objExpr.getOName(), fn {
+		def newObjClass := queueCompileInnerClass(objExpr)
+
+		def oName := objExpr.getOName()
+
+		mw.visitTypeInsn(<op:NEW>, newObjClass)
+		mw.visitInsn(<op:DUP>)
+		mw.visitVarInsn(<op:ALOAD>, 0);
+		mw.visitFieldInsn(<op:GETFIELD>, "Test", "context", "Lorg/erights/e/elang/scope/EvalContext;")
+		mw.visitMethodInsn(<op:INVOKESPECIAL>, newObjClass, "<init>", "(Lorg/erights/e/elang/scope/EvalContext;)V");
+
+		2
+	})
 }
 
 def evalAssign(mw, noun, value) {
@@ -213,6 +244,9 @@ bind eval(mw, item) {
 				}
 			}
 		}
+		match x :ObjectExpr {
+			return evalObjectDef(mw, x)
+		}
 		match x :IfExpr {
 			return evalIf(mw, x)
 		}
@@ -268,17 +302,15 @@ bind eval(mw, item) {
 }
 
 
-def compile(transformed, scopeLayout, nLocals) {
+def compileOne(className, transformed, scopeLayout, nLocals) {
 	def cw := <asm:makeClassWriter>(0)
-	cw.visit(<op:V1_1>, <op:ACC_PUBLIC>, "Test", null, "java/lang/Object", null)
+	cw.visit(<op:V1_1>, <op:ACC_PUBLIC>, className, null, "java/lang/Object", null)
 
-	#cw.visitField(<op:ACC_PRIVATE>, "scope", "Lorg/erights/e/elang/scope/Scope;", null, null)
-	cw.visitField(<op:ACC_PRIVATE>,
-			"context", "Lorg/erights/e/elang/scope/EvalContext;", null, null)
+	cw.visitField(<op:ACC_PRIVATE>, "context", "Lorg/erights/e/elang/scope/EvalContext;", null, null)
 
 	# Constructor
         def cons := cw.visitMethod(<op:ACC_PUBLIC>, "<init>",
-                "(Lorg/erights/e/elang/scope/Scope;)V",
+                "(Lorg/erights/e/elang/scope/EvalContext;)V",
                 null,
                 null)
 	# pushes the 'this' variable
@@ -288,10 +320,7 @@ def compile(transformed, scopeLayout, nLocals) {
 
         cons.visitVarInsn(<op:ALOAD>, 0);
         cons.visitVarInsn(<op:ALOAD>, 1);
-	cons.visitLdcInsn(0)
-	cons.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elang/scope/Scope", "newContext",
-			"(I)Lorg/erights/e/elang/scope/EvalContext;")
-	cons.visitFieldInsn(<op:PUTFIELD>, "Test", "context", "Lorg/erights/e/elang/scope/EvalContext;")
+	cons.visitFieldInsn(<op:PUTFIELD>, className, "context", "Lorg/erights/e/elang/scope/EvalContext;")
 
         cons.visitInsn(<op:RETURN>);
         cons.visitMaxs(3, 2);
@@ -303,14 +332,26 @@ def compile(transformed, scopeLayout, nLocals) {
 
 	def stackSize := eval(mw, transformed)
 
-	mw.visitMaxs(stackSize, nLocals + 2)
+	println(`$className : ss = $stackSize`)
+
+	mw.visitMaxs(stackSize + 1, nLocals + 2)
 
 	mw.visitInsn(<op:RETURN>)
 	mw.visitEnd()
 
 	def code := cw.toByteArray()
-	def os := <file:Test.class>.setBytes(code)
+	def os := <file>[`$className.class`].setBytes(code)
 	return code
+}
+
+def compile(transformed, scopeLayout, nLocals) {
+	def root := compileOne("Test", transformed, scopeLayout, nLocals)
+	while (innerClasses.size() > 0) {
+		def [name, objExpr] := innerClasses.pop()
+		def script := objExpr.getScript()
+		compileOne(name, e`1`, script.getScopeLayout(), 0)
+	}
+	return root
 }
 
 def [source] := interp.getArgs()
