@@ -1,4 +1,5 @@
 def FinalPattern := <type:org.erights.e.elang.evm.FinalPattern>
+def VarPattern := <type:org.erights.e.elang.evm.VarPattern>
 def OuterNounExpr := <type:org.erights.e.elang.evm.OuterNounExpr>
 def LocalFinalNounExpr := <type:org.erights.e.elang.evm.LocalFinalNounExpr>
 def LiteralExpr := <type:org.erights.e.elang.evm.LiteralExpr>
@@ -52,6 +53,13 @@ def evalMakeSlot(mw, pattern, value) {
 		match finalPattern :FinalPattern {
 			"org/erights/e/elib/slot/FinalSlot"
 		}
+		match varPattern :VarPattern {
+			if (guard == null) {
+				"org/erights/e/elib/slot/SimpleSlot"
+			} else {
+				"org/erights/e/elib/slot/SettableSlot"
+			}
+		}
 	}
 
 	mw.visitTypeInsn(<op:NEW>, slotType);
@@ -59,8 +67,10 @@ def evalMakeSlot(mw, pattern, value) {
 	mw.visitInsn(<op:SWAP>)
 	mw.visitInsn(<op:DUP2>)
 	# stack: slot, value, slot, value
-	mw.visitMethodInsn(<op:INVOKESPECIAL>, "org/erights/e/elib/slot/FinalSlot", "<init>",
-				"(Ljava/lang/Object;)V");
+
+	mw.visitMethodInsn(<op:INVOKESPECIAL>, slotType, "<init>",
+		"(Ljava/lang/Object;)V");
+
 	# stack: slot, value
 	return max(valueStack, 4)
 }

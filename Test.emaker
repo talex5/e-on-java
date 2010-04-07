@@ -1,3 +1,4 @@
+var i := 0
 {
 def x :float64 := 4
 traceln(`x = $x`)
