@@ -1,5 +1,6 @@
 def FinalPattern := <type:org.erights.e.elang.evm.FinalPattern>
 def OuterNounExpr := <type:org.erights.e.elang.evm.OuterNounExpr>
+def LocalFinalNounExpr := <type:org.erights.e.elang.evm.LocalFinalNounExpr>
 def LiteralExpr := <type:org.erights.e.elang.evm.LiteralExpr>
 def CallExpr := <type:org.erights.e.elang.evm.CallExpr>
 def SeqExpr := <type:org.erights.e.elang.evm.SeqExpr>
@@ -43,12 +44,24 @@ def evalMakeSlot(mw, pattern, value) {
 	return max(maxStack, 4)
 }
 
+def eLocalToJaveLocal(i) {
+	return i + 2
+}
+
 def evalDef(mw, pattern, value) {
 	def guard := pattern.getOptGuardExpr()
 	require(guard == null)
 	def noun := pattern.getNoun()
 	traceln(`def $noun (${noun.__getAllegedType()})`)
 	switch (noun) {
+		match lNoun :LocalFinalNounExpr {
+			pattern :FinalPattern
+			def i := lNoun.getIndex()
+			def valueStack := eval(mw, value)
+			mw.visitInsn(<op:DUP>)
+			mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
+			return valueStack
+		}
 		match oNoun :OuterNounExpr {
 			def i := oNoun.getIndex()
 			# push(this.context)
@@ -87,6 +100,11 @@ bind eval(mw, item) {
 					"()Ljava/lang/Object;")
 			println(`(outer)`)
 			return 2
+		}
+		match x :LocalFinalNounExpr {
+			def i := x.getIndex()
+			mw.visitIntInsn(<op:ALOAD>, eLocalToJaveLocal(i))
+			return 1
 		}
 		match x :LiteralExpr {
 			mw.visitLdcInsn(x.value())
@@ -176,7 +194,7 @@ def compile(transformed, scopeLayout, nLocals) {
 
 	def stackSize := eval(mw, transformed)
 
-	mw.visitMaxs(stackSize, nLocals + 1)
+	mw.visitMaxs(stackSize, nLocals + 2)
 
 	mw.visitInsn(<op:RETURN>)
 	mw.visitEnd()

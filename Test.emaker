@@ -1,3 +1,5 @@
+{
 def x := "Compiled var!"
-traceln(x)
+traceln(x + x)
+}
 #traceln("Hi")
