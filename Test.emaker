@@ -1,8 +1,7 @@
-var i := 0
-i := 7
-{
-def x :float64 := 4
-traceln(`x = $x, i = $i`)
-i := x
+var i := 100
+if (i > 10) {
+	traceln(`big i = $i`)
+	i := 1
+} else {
+	traceln(`small i = $i`)
 }
-traceln(`i = $i`)

@@ -7,8 +7,10 @@ def CallExpr := <type:org.erights.e.elang.evm.CallExpr>
 def SeqExpr := <type:org.erights.e.elang.evm.SeqExpr>
 def AssignExpr := <type:org.erights.e.elang.evm.AssignExpr>
 def DefineExpr := <type:org.erights.e.elang.evm.DefineExpr>
+def IfExpr := <type:org.erights.e.elang.evm.IfExpr>
 
 def <asm> := <unsafe:org.objectweb.asm.*>
+def makeLabel := <asm:makeLabel>
 def Opcodes := <asm:makeOpcodes>
 def <op> {
 	to get(code) {
@@ -88,6 +90,29 @@ def evalEInt(mw, value :int) {
 	return 1
 }
 
+def evalIf(mw, ifExpr) {
+	def testStack := eval(mw, ifExpr.getTest())
+	#E.asBoolean(value)
+
+	mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "asBoolean",
+		"(Ljava/lang/Object;)Z")
+
+	def elseBlock := makeLabel()
+	def done := makeLabel()
+
+	mw.visitJumpInsn(<op:IFEQ>, elseBlock)
+
+	def thenStack := eval(mw, ifExpr.getThen())
+	mw.visitJumpInsn(<op:GOTO>, done)
+
+	mw.visitLabel(elseBlock)
+	def elseStack := eval(mw, ifExpr.getElse())
+
+	mw.visitLabel(done)
+
+	return max(max(testStack, thenStack), elseStack)
+}
+
 def evalDef(mw, pattern, value) {
 	def guard := pattern.getOptGuardExpr()
 	def noun := pattern.getNoun()
@@ -126,12 +151,11 @@ def evalDef(mw, pattern, value) {
 }
 
 def evalAssign(mw, noun, value) {
-	def valueStack := eval(mw, value)
 	switch (noun) {
 		match lNoun :LocalFinalNounExpr {
 			def i := lNoun.getIndex()
 			#def valueStack := evalGuard(mw, guard, value)
-			def value := eval(mw, value)
+			def valueStack := eval(mw, value)
 			mw.visitInsn(<op:DUP>)
 			mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
 			return valueStack
@@ -143,6 +167,7 @@ def evalAssign(mw, noun, value) {
 			mw.visitFieldInsn(<op:GETFIELD>, "Test", "context", "Lorg/erights/e/elang/scope/EvalContext;")
 			# context.outer(i)
 			mw.visitLdcInsn(i)
+			# stack: context, i
 			mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elang/scope/EvalContext", "outer",
 					"(I)Lorg/erights/e/elib/slot/Slot;")
 			def valueStack := eval(mw, value)
@@ -187,6 +212,9 @@ bind eval(mw, item) {
 					return 1
 				}
 			}
+		}
+		match x :IfExpr {
+			return evalIf(mw, x)
 		}
 		match x :AssignExpr {
 			return evalAssign(mw, x.getNoun(), x.getRValue())
