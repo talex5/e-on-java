@@ -24,24 +24,28 @@ def max(a, b) {
 
 def eval
 
+def evalGuard(mw, guard, value) {
+	if (guard == null) {
+		return eval(mw, value)
+	}
+
+	#E.call(foo, "coerce", specimen, optEjector);
+	def guardStack := eval(mw, guard)
+	mw.visitLdcInsn("coerce");
+	def maxStack := 2 + eval(mw, value) + 1
+	mw.visitInsn(<op:ACONST_NULL>)	# XXX
+	mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "call",
+		"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
+	#mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/slot/Guard", "coerce",
+	#"(Ljava/lang/Object;Lorg/erights;Lorg/erights/e/elib/util/OneArgFunc;)Ljava/lang/Object;")
+	return maxStack
+}
+
 # => slot, value
 def evalMakeSlot(mw, pattern, value) {
 	def guard := pattern.getOptGuardExpr()
 
-	var maxStack := 0
-	if (guard != null) {
-		#E.call(foo, "coerce", specimen, optEjector);
-		def guardStack := eval(mw, guard)
-		mw.visitLdcInsn("coerce");
-		maxStack := 2 + eval(mw, value) + 1
-		mw.visitInsn(<op:ACONST_NULL>)	# XXX
-		mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "call",
-			"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
-		#mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/slot/Guard", "coerce",
-		#"(Ljava/lang/Object;Lorg/erights;Lorg/erights/e/elib/util/OneArgFunc;)Ljava/lang/Object;")
-	} else {
-		maxStack := eval(mw, value)
-	}
+	def valueStack := evalGuard(mw, guard, value)
 
 	# Package top-most value in a slot
 	def slotType := switch (pattern) {
@@ -58,7 +62,7 @@ def evalMakeSlot(mw, pattern, value) {
 	mw.visitMethodInsn(<op:INVOKESPECIAL>, "org/erights/e/elib/slot/FinalSlot", "<init>",
 				"(Ljava/lang/Object;)V");
 	# stack: slot, value
-	return max(maxStack, 4)
+	return max(valueStack, 4)
 }
 
 def eLocalToJaveLocal(i) {
@@ -80,9 +84,8 @@ def evalDef(mw, pattern, value) {
 	switch (noun) {
 		match lNoun :LocalFinalNounExpr {
 			pattern :FinalPattern
-			require(guard == null)
 			def i := lNoun.getIndex()
-			def valueStack := eval(mw, value)
+			def valueStack := evalGuard(mw, guard, value)
 			mw.visitInsn(<op:DUP>)
 			mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
 			return valueStack
