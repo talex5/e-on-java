@@ -1,5 +1,8 @@
 var i := 0
+i := 7
 {
 def x :float64 := 4
-traceln(`x = $x`)
+traceln(`x = $x, i = $i`)
+i := x
 }
+traceln(`i = $i`)

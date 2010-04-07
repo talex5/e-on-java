@@ -5,6 +5,7 @@ def LocalFinalNounExpr := <type:org.erights.e.elang.evm.LocalFinalNounExpr>
 def LiteralExpr := <type:org.erights.e.elang.evm.LiteralExpr>
 def CallExpr := <type:org.erights.e.elang.evm.CallExpr>
 def SeqExpr := <type:org.erights.e.elang.evm.SeqExpr>
+def AssignExpr := <type:org.erights.e.elang.evm.AssignExpr>
 def DefineExpr := <type:org.erights.e.elang.evm.DefineExpr>
 
 def <asm> := <unsafe:org.objectweb.asm.*>
@@ -124,6 +125,38 @@ def evalDef(mw, pattern, value) {
 	}
 }
 
+def evalAssign(mw, noun, value) {
+	def valueStack := eval(mw, value)
+	switch (noun) {
+		match lNoun :LocalFinalNounExpr {
+			def i := lNoun.getIndex()
+			#def valueStack := evalGuard(mw, guard, value)
+			def value := eval(mw, value)
+			mw.visitInsn(<op:DUP>)
+			mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
+			return valueStack
+		}
+		match oNoun :OuterNounExpr {
+			def i := oNoun.getIndex()
+			# push(this.context)
+			mw.visitVarInsn(<op:ALOAD>, 0);
+			mw.visitFieldInsn(<op:GETFIELD>, "Test", "context", "Lorg/erights/e/elang/scope/EvalContext;")
+			# context.outer(i)
+			mw.visitLdcInsn(i)
+			mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elang/scope/EvalContext", "outer",
+					"(I)Lorg/erights/e/elib/slot/Slot;")
+			def valueStack := eval(mw, value)
+			# stack: slot, value
+			mw.visitInsn(<op:DUP_X1>)
+			# stack: value, slot, value
+			mw.visitMethodInsn(<op:INVOKEINTERFACE>, "org/erights/e/elib/slot/Slot", "put",
+					"(Ljava/lang/Object;)V")
+
+			return max(valueStack + 1, 3)
+		}
+	}
+}
+
 bind eval(mw, item) {
 	println(`eval: $item : ${item.__getAllegedType()}`)
 	switch (item) {
@@ -154,6 +187,9 @@ bind eval(mw, item) {
 					return 1
 				}
 			}
+		}
+		match x :AssignExpr {
+			return evalAssign(mw, x.getNoun(), x.getRValue())
 		}
 		match x :SeqExpr {
 			var maxStack := 0
