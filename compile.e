@@ -48,6 +48,14 @@ def eLocalToJaveLocal(i) {
 	return i + 2
 }
 
+def evalEInt(mw, value :int) {
+	# XXX: values longer than Long?
+	mw.visitLdcInsn(value :<type:long>)
+	mw.visitMethodInsn(<op:INVOKESTATIC>, "java/math/BigInteger", "valueOf",
+				"(J)Ljava/math/BigInteger;")
+	return 1
+}
+
 def evalDef(mw, pattern, value) {
 	def guard := pattern.getOptGuardExpr()
 	require(guard == null)
@@ -107,8 +115,15 @@ bind eval(mw, item) {
 			return 1
 		}
 		match x :LiteralExpr {
-			mw.visitLdcInsn(x.value())
-			return 1
+			switch (x.value()) {
+				match i :int {
+					return evalEInt(mw, i)
+				}
+				match s :String {
+					mw.visitLdcInsn(s)
+					return 1
+				}
+			}
 		}
 		match x :SeqExpr {
 			var maxStack := 0
