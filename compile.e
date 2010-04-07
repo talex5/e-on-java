@@ -26,6 +26,23 @@ def eval
 
 # => slot, value
 def evalMakeSlot(mw, pattern, value) {
+	def guard := pattern.getOptGuardExpr()
+
+	var maxStack := 0
+	if (guard != null) {
+		#E.call(foo, "coerce", specimen, optEjector);
+		def guardStack := eval(mw, guard)
+		mw.visitLdcInsn("coerce");
+		maxStack := 2 + eval(mw, value) + 1
+		mw.visitInsn(<op:ACONST_NULL>)	# XXX
+		mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "call",
+			"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
+		#mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/slot/Guard", "coerce",
+		#"(Ljava/lang/Object;Lorg/erights;Lorg/erights/e/elib/util/OneArgFunc;)Ljava/lang/Object;")
+	} else {
+		maxStack := eval(mw, value)
+	}
+
 	# Package top-most value in a slot
 	def slotType := switch (pattern) {
 		match finalPattern :FinalPattern {
@@ -34,13 +51,13 @@ def evalMakeSlot(mw, pattern, value) {
 	}
 
 	mw.visitTypeInsn(<op:NEW>, slotType);
-	mw.visitInsn(<op:DUP>)
-	def maxStack := 2 + eval(mw, value)
-	# stack: slot, slot, value
-	mw.visitInsn(<op:DUP_X1>)
+	# stack: value, slot
+	mw.visitInsn(<op:SWAP>)
+	mw.visitInsn(<op:DUP2>)
 	# stack: slot, value, slot, value
 	mw.visitMethodInsn(<op:INVOKESPECIAL>, "org/erights/e/elib/slot/FinalSlot", "<init>",
 				"(Ljava/lang/Object;)V");
+	# stack: slot, value
 	return max(maxStack, 4)
 }
 
@@ -58,12 +75,12 @@ def evalEInt(mw, value :int) {
 
 def evalDef(mw, pattern, value) {
 	def guard := pattern.getOptGuardExpr()
-	require(guard == null)
 	def noun := pattern.getNoun()
 	traceln(`def $noun (${noun.__getAllegedType()})`)
 	switch (noun) {
 		match lNoun :LocalFinalNounExpr {
 			pattern :FinalPattern
+			require(guard == null)
 			def i := lNoun.getIndex()
 			def valueStack := eval(mw, value)
 			mw.visitInsn(<op:DUP>)
