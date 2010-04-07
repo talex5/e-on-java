@@ -167,8 +167,8 @@ public abstract class EExpr extends ENode {
         GeneratedClassLoader loader = new GeneratedClassLoader();
         Class generated = loader.defineClass(code);
         try {
-            Constructor cons = generated.getConstructor(new Class[] {Scope.class});
-            return cons.newInstance(new Object[] {newScope});
+            Constructor cons = generated.getConstructor(new Class[] {EvalContext.class});
+            return cons.newInstance(new Object[] {newScope.newContext(0)});
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
