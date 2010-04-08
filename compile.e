@@ -327,7 +327,7 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
         cons.visitEnd();
 
 	def mw := cw.visitMethod(<op:ACC_PUBLIC>,
-				"run", "()V",
+				"run", "()Ljava/lang/Object;",
 				null, null)
 
 	def stackSize := eval(mw, transformed)
@@ -336,7 +336,7 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 
 	mw.visitMaxs(stackSize + 1, nLocals + 2)
 
-	mw.visitInsn(<op:RETURN>)
+	mw.visitInsn(<op:ARETURN>)
 	mw.visitEnd()
 
 	def code := cw.toByteArray()
