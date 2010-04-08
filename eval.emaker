@@ -1,7 +1,9 @@
 def ObjectExpr := <type:org.erights.e.elang.evm.ObjectExpr>
 def FinalPattern := <type:org.erights.e.elang.evm.FinalPattern>
+def SlotPattern := <type:org.erights.e.elang.evm.SlotPattern>
 def VarPattern := <type:org.erights.e.elang.evm.VarPattern>
 def OuterNounExpr := <type:org.erights.e.elang.evm.OuterNounExpr>
+def SlotExpr := <type:org.erights.e.elang.evm.SlotExpr>
 def LocalFinalNounExpr := <type:org.erights.e.elang.evm.LocalFinalNounExpr>
 def LiteralExpr := <type:org.erights.e.elang.evm.LiteralExpr>
 def CallExpr := <type:org.erights.e.elang.evm.CallExpr>
@@ -10,6 +12,8 @@ def AssignExpr := <type:org.erights.e.elang.evm.AssignExpr>
 def DefineExpr := <type:org.erights.e.elang.evm.DefineExpr>
 def IfExpr := <type:org.erights.e.elang.evm.IfExpr>
 def FrameFinalNounExpr := <type:org.erights.e.elang.evm.FrameFinalNounExpr>
+def LocalSlotNounExpr := <type:org.erights.e.elang.evm.LocalSlotNounExpr>
+def FrameSlotNounExpr := <type:org.erights.e.elang.evm.FrameSlotNounExpr>
 
 def max(a, b) {
 	if (a > b) {
@@ -53,6 +57,12 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			def guard := pattern.getOptGuardExpr()
 
 			def valueStack := evalGuard(guard, valueMaker)
+
+			if (pattern =~ sp :SlotPattern) {
+				# The value is the slot
+				mw.visitInsn(<op:DUP>)
+				return max(2, valueStack)
+			}
 
 			# Package top-most value in a slot
 			def slotType := switch (pattern) {
@@ -121,6 +131,13 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			def noun := pattern.getNoun()
 			traceln(`def $noun (${noun.__getAllegedType()})`)
 			switch (noun) {
+				match lsNoun :LocalSlotNounExpr {
+					def i := lsNoun.getIndex()
+					def stackSlot := evalMakeSlot(pattern, valueMaker)
+					mw.visitInsn(<op:DUP>)
+					mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
+					return stackSlot
+				}
 				match lNoun :LocalFinalNounExpr {
 					pattern :FinalPattern
 					def i := lNoun.getIndex()
@@ -221,9 +238,26 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			}
 		}
 
+		def evalSlotExpr(slotExpr) {
+			#traceln(`evalSlotExpr($slotExpr :${slotExpr.getNoun().__getAllegedType()})`)
+			return switch (slotExpr.getNoun()) {
+				match oNoun :OuterNounExpr {
+					def i := oNoun.getIndex()
+					mw.visitVarInsn(<op:ALOAD>, 0);
+					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
+					mw.visitLdcInsn(i)
+					mw.visitInsn(<op:AALOAD>)
+					return 2
+				}
+			}
+		}
+
 		return bind eval(item) {
 			traceln(`eval: $item : ${item.__getAllegedType()}`)
 			switch (item) {
+				match x :SlotExpr {
+					return evalSlotExpr(x)
+				}
 				match x :OuterNounExpr {
 					def i := x.getIndex()
 					mw.visitVarInsn(<op:ALOAD>, 0);
@@ -246,6 +280,21 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					def i := x.getIndex()
 					mw.visitIntInsn(<op:ALOAD>, eLocalToJaveLocal(i))
 					return 1
+				}
+				match x :LocalSlotNounExpr {
+					def i := x.getIndex()
+					mw.visitIntInsn(<op:ALOAD>, eLocalToJaveLocal(i))
+					mw.visitMethodInsn(<op:INVOKEINTERFACE>, "org/erights/e/elib/slot/Slot", "get",
+							"()Ljava/lang/Object;")
+					return 1
+				}
+				match x :FrameSlotNounExpr {
+					def i := x.getIndex()
+					mw.visitVarInsn(<op:ALOAD>, 0);
+					mw.visitFieldInsn(<op:GETFIELD>, className, "fields", "[Ljava/lang/Object;")
+					mw.visitLdcInsn(i)
+					mw.visitInsn(<op:AALOAD>)
+					return 2
 				}
 				match x :LiteralExpr {
 					switch (x.value()) {

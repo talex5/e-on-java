@@ -1,10 +1,10 @@
 def x := 2
 {
 def y := 3
+def &z := &x
 def foo() {
-	return x + y
+	return x + y + z
 }
-
 traceln(`got: ${foo()}`)
 }
 
