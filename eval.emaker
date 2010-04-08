@@ -9,6 +9,7 @@ def SeqExpr := <type:org.erights.e.elang.evm.SeqExpr>
 def AssignExpr := <type:org.erights.e.elang.evm.AssignExpr>
 def DefineExpr := <type:org.erights.e.elang.evm.DefineExpr>
 def IfExpr := <type:org.erights.e.elang.evm.IfExpr>
+def FrameFinalNounExpr := <type:org.erights.e.elang.evm.FrameFinalNounExpr>
 
 def max(a, b) {
 	if (a > b) {
@@ -130,22 +131,19 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				}
 				match oNoun :OuterNounExpr {
 					def i := oNoun.getIndex()
-					# push(this.context)
+					# this.outers[i] := new Slot(value)
 					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "context", "Lorg/erights/e/elang/scope/EvalContext;")
-					# push(new Slot(value))
+					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
+					# stack: outers
 					def stackSlot := evalMakeSlot(pattern, valueMaker)
-					# stack: context, slot, value
+					# stack: outers, slot, value
 					mw.visitInsn(<op:DUP_X2>)
 					mw.visitInsn(<op:POP>)
-					# stack: value, context, slot
-					# push(i)
+					# stack: value, outers, slot
 					mw.visitLdcInsn(i)
 					mw.visitInsn(<op:SWAP>)
-					# stack: value, context, i, slot
-					# context.initOuter(newSlow)
-					mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elang/scope/EvalContext", "initOuter",
-							"(ILorg/erights/e/elib/slot/Slot;)V")
+					# stack: value, outers, i, slot
+					mw.visitInsn(<op:AASTORE>)
 					# stack: value
 					return 70
 				}
@@ -165,10 +163,31 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				mw.visitTypeInsn(<op:NEW>, newObjClass)
 				mw.visitInsn(<op:DUP>)
 				mw.visitVarInsn(<op:ALOAD>, 0);
-				mw.visitFieldInsn(<op:GETFIELD>, className, "context", "Lorg/erights/e/elang/scope/EvalContext;")
-				mw.visitMethodInsn(<op:INVOKESPECIAL>, newObjClass, "<init>", "(Lorg/erights/e/elang/scope/EvalContext;)V");
+				mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
 
-				2
+				# Create a new array for the fields (non-outer variables in scope of the object and
+				# used inside the object).
+				def fields := objExpr.optFieldNouns()
+				mw.visitIntInsn(<op:BIPUSH>, fields.size())
+				mw.visitTypeInsn(<op:ANEWARRAY>, "java/lang/Object")
+				# stack: object, context, array
+				var maxStack := 4
+				for i => field in fields {
+					mw.visitInsn(<op:DUP>)
+					mw.visitLdcInsn(i);
+					traceln(`field $i (${i.__getAllegedType()})`)
+					# stack: object, context, array, array, i
+					def stackForField := eval(field) + 5
+					mw.visitInsn(<op:AASTORE>)
+					if (stackForField > maxStack) {
+						maxStack := stackForField
+					}
+				}
+
+				mw.visitMethodInsn(<op:INVOKESPECIAL>, newObjClass, "<init>",
+					"([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V");
+
+				maxStack
 			})
 		}
 
@@ -186,12 +205,10 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					def i := oNoun.getIndex()
 					# push(this.context)
 					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "context", "Lorg/erights/e/elang/scope/EvalContext;")
-					# context.outer(i)
+					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
 					mw.visitLdcInsn(i)
-					# stack: context, i
-					mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elang/scope/EvalContext", "outer",
-							"(I)Lorg/erights/e/elib/slot/Slot;")
+					# stack: array, i
+					mw.visitInsn(<op:AALOAD>)
 					def valueStack := eval(value)
 					# stack: slot, value
 					mw.visitInsn(<op:DUP_X1>)
@@ -210,12 +227,19 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				match x :OuterNounExpr {
 					def i := x.getIndex()
 					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "context", "Lorg/erights/e/elang/scope/EvalContext;")
+					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
 					mw.visitLdcInsn(i)
-					mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elang/scope/EvalContext", "outer",
-							"(I)Lorg/erights/e/elib/slot/Slot;")
+					mw.visitInsn(<op:AALOAD>)
 					mw.visitMethodInsn(<op:INVOKEINTERFACE>, "org/erights/e/elib/slot/Slot", "get",
 							"()Ljava/lang/Object;")
+					return 2
+				}
+				match x :FrameFinalNounExpr {
+					def i := x.getIndex()
+					mw.visitVarInsn(<op:ALOAD>, 0);
+					mw.visitFieldInsn(<op:GETFIELD>, className, "fields", "[Ljava/lang/Object;")
+					mw.visitLdcInsn(i)
+					mw.visitInsn(<op:AALOAD>)
 					return 2
 				}
 				match x :LocalFinalNounExpr {

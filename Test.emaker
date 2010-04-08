@@ -1,16 +1,13 @@
-def foo {
-	to run() {
-		return 17
-	}
+def x := 2
+{
+def y := 3
+def foo() {
+	return x + y
 }
 
-var i := 100
-if (i > 10) {
-	traceln(`big i = $i`)
-	i := 1
-} else {
-	traceln(`small i = $i`)
+traceln(`got: ${foo()}`)
 }
 
-traceln(`foo: $foo`)
-traceln(`result: ${foo.run()}`)
+#for x in 1..10 {
+#	traceln(`x = $x`)
+#}

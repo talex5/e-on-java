@@ -25,11 +25,12 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 	def cw := <asm:makeClassWriter>(0)
 	cw.visit(<op:V1_1>, <op:ACC_PUBLIC>, className, null, "java/lang/Object", null)
 
-	cw.visitField(<op:ACC_PRIVATE>, "context", "Lorg/erights/e/elang/scope/EvalContext;", null, null)
+	cw.visitField(<op:ACC_PRIVATE>, "outers", "[Lorg/erights/e/elib/slot/Slot;", null, null)
+	cw.visitField(<op:ACC_PRIVATE>, "fields", "[Ljava/lang/Object;", null, null)
 
 	# Constructor
         def cons := cw.visitMethod(<op:ACC_PUBLIC>, "<init>",
-                "(Lorg/erights/e/elang/scope/EvalContext;)V",
+                "([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V",
                 null,
                 null)
 	# pushes the 'this' variable
@@ -39,10 +40,14 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 
         cons.visitVarInsn(<op:ALOAD>, 0);
         cons.visitVarInsn(<op:ALOAD>, 1);
-	cons.visitFieldInsn(<op:PUTFIELD>, className, "context", "Lorg/erights/e/elang/scope/EvalContext;")
+	cons.visitFieldInsn(<op:PUTFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
+
+        cons.visitVarInsn(<op:ALOAD>, 0);
+        cons.visitVarInsn(<op:ALOAD>, 2);
+	cons.visitFieldInsn(<op:PUTFIELD>, className, "fields", "[Ljava/lang/Object;")
 
         cons.visitInsn(<op:RETURN>);
-        cons.visitMaxs(3, 2);
+        cons.visitMaxs(3, 3);
         cons.visitEnd();
 
 	if (transformed =~ script :EScript) {
