@@ -1,4 +1,8 @@
-def foo { }
+def foo {
+	to run() {
+		return 17
+	}
+}
 
 var i := 100
 if (i > 10) {
