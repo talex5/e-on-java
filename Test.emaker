@@ -1,12 +1,13 @@
-def x := 2
-{
-def y := 3
-def &z := &x
-def foo() {
-	return x + y + z
+var x := 0
+try {
+	x := 1
+	throw("foo")
+} finally {
+	traceln("finally!")
+	x := 2
 }
-traceln(`got: ${foo()}`)
-}
+
+traceln(`x = $x`)
 
 #for x in 1..10 {
 #	traceln(`x = $x`)

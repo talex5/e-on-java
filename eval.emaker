@@ -14,6 +14,7 @@ def IfExpr := <type:org.erights.e.elang.evm.IfExpr>
 def FrameFinalNounExpr := <type:org.erights.e.elang.evm.FrameFinalNounExpr>
 def LocalSlotNounExpr := <type:org.erights.e.elang.evm.LocalSlotNounExpr>
 def FrameSlotNounExpr := <type:org.erights.e.elang.evm.FrameSlotNounExpr>
+def FinallyExpr := <type:org.erights.e.elang.evm.FinallyExpr>
 
 def max(a, b) {
 	if (a > b) {
@@ -33,6 +34,22 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			to get(code) {
 				return E.call(Opcodes, `get$code`, [])
 			}
+		}
+
+		var maxLocal := -100
+		var topUsedLocal := -100
+
+		def allocLocal() {
+			topUsedLocal += 1
+			if (topUsedLocal > maxLocal) {
+				maxLocal := topUsedLocal
+			}
+			return topUsedLocal
+		}
+
+		def releaseVar(n :int) {
+			require(n == topUsedLocal)
+			topUsedLocal -= 1
 		}
 
 		def evalGuard(guard, valueMaker) {
@@ -92,7 +109,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 		}
 
 		def eLocalToJaveLocal(i) {
-			return i + 2
+			return i + 3
 		}
 
 		def evalEInt(value :int) {
@@ -252,7 +269,63 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			}
 		}
 
-		return bind eval(item) {
+		def evalFinally(finallyExpr) {
+			# try {
+			# startAttempt:
+			#   attempt()
+			# endAttempt:
+			#   jsr finally
+			#   goto done
+			# } catch _ {
+			# catchBlock:
+			#   jsr finally
+			#   rethrow
+			# }
+			# finally:
+			#   unwinder()
+			#   ret
+			# done:
+			def startAttempt := makeLabel()
+			def endAttempt := makeLabel()
+			def catchBlock := makeLabel()
+			def finallyLabel := makeLabel()
+			def done := makeLabel()
+
+			mw.visitLabel(startAttempt)
+			def attemptStack := eval(finallyExpr.getAttempt())
+			mw.visitLabel(endAttempt)
+			mw.visitJumpInsn(<op:JSR>, finallyLabel)
+			mw.visitJumpInsn(<op:GOTO>, done)
+
+			# Catch block
+			mw.visitLabel(catchBlock)
+			def exVar := allocLocal()
+			mw.visitIntInsn(<op:ASTORE>, exVar)	# (must store the exception for type-checking)
+			mw.visitInsn(<op:ACONST_NULL>)		# (for consistent stack height)
+			mw.visitJumpInsn(<op:JSR>, finallyLabel)
+			mw.visitIntInsn(<op:ALOAD>, exVar)
+			mw.visitInsn(<op:ATHROW>)	# XXX
+
+			# Finally
+			# stack: value, returnAddress
+			mw.visitLabel(finallyLabel)
+
+			def unwindStack := eval(finallyExpr.getUnwinder()) + 2
+			mw.visitInsn(<op:POP>)
+
+			mw.visitIntInsn(<op:ASTORE>, 2)
+			mw.visitIntInsn(<op:RET>, 2)
+
+			mw.visitLabel(done)
+
+			mw.visitTryCatchBlock(startAttempt, endAttempt, catchBlock, null)
+
+			releaseVar(exVar)
+
+			return max(attemptStack, unwindStack)
+		}
+
+		bind eval(item) {
 			traceln(`eval: $item : ${item.__getAllegedType()}`)
 			switch (item) {
 				match x :SlotExpr {
@@ -287,6 +360,9 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					mw.visitMethodInsn(<op:INVOKEINTERFACE>, "org/erights/e/elib/slot/Slot", "get",
 							"()Ljava/lang/Object;")
 					return 1
+				}
+				match x :FinallyExpr {
+					return evalFinally(x)
 				}
 				match x :FrameSlotNounExpr {
 					def i := x.getIndex()
@@ -361,6 +437,18 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 						"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
 					return maxStack
 				}
+			}
+		}
+
+		return def compiler {
+			to run(code, nELocals) {
+				maxLocal := nELocals + 3 - 1
+				topUsedLocal := maxLocal
+				return eval(code)
+			}
+
+			to getLocalsNeeded() {
+				return maxLocal + 1
 			}
 		}
 	}

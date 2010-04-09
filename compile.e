@@ -58,11 +58,12 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 						name, "()Ljava/lang/Object;",
 						null, null)
 
-			def stackSize := makeMethodCompiler(mw, className).run(m.getBody())
+			def compiler := makeMethodCompiler(mw, className)
+			def stackSize := compiler.run(m.getBody, nLocals)
 
 			println(`$className.$name : ss = $stackSize`)
 
-			mw.visitMaxs(stackSize + 1, nLocals + 2)
+			mw.visitMaxs(stackSize + 1, compiler.getLocalsNeeded())
 
 			mw.visitInsn(<op:ARETURN>)
 			mw.visitEnd()
@@ -72,11 +73,13 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 					"run", "()Ljava/lang/Object;",
 					null, null)
 
-		def stackSize := makeMethodCompiler(mw, className).run(transformed)
+		def compiler := makeMethodCompiler(mw, className)
+		def stackSize := compiler.run(transformed, nLocals)
 
 		println(`$className : ss = $stackSize`)
+		println(`$className : locals = ${compiler.getLocalsNeeded()}`)
 
-		mw.visitMaxs(stackSize + 1, nLocals + 2)
+		mw.visitMaxs(stackSize + 1, compiler.getLocalsNeeded())
 
 		mw.visitInsn(<op:ARETURN>)
 		mw.visitEnd()
