@@ -371,7 +371,7 @@ public class ObjectExpr extends EExpr {
      * <p/>
      * Will be non-null after the appropriate compilation transformation.
      */
-    NounExpr[] optFieldNouns() {
+    public NounExpr[] optFieldNouns() {
         return myOptFieldInits;
     }
 

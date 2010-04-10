@@ -101,4 +101,8 @@ public class LocalSlotNounExpr extends NestNounExpr {
         super.subPrintOn(out, priority);
 //        out.print("$lv", new Integer(myIndex));
     }
+
+    public int getIndex() {
+        return myIndex;
+    }
 }

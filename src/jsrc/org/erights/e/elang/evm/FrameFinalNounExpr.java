@@ -126,4 +126,8 @@ public class FrameFinalNounExpr extends NestNounExpr {
     public void initSlot(EvalContext ctx, Slot slot) {
         T.fail("Internal: Not a slot variable: " + this);
     }
+
+    public int getIndex() {
+        return myIndex;
+    }
 }

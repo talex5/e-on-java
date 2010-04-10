@@ -103,4 +103,7 @@ public class FrameSlotNounExpr extends NestNounExpr {
         ctx.initField(myIndex, slot);
     }
 
+    public int getIndex() {
+        return myIndex;
+    }
 }

@@ -31,6 +31,7 @@ import org.erights.e.elib.oldeio.TextWriter;
 import org.erights.e.elib.prim.E;
 import org.erights.e.elib.ref.Ref;
 import org.erights.e.elib.serial.DeepPassByCopy;
+import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.tables.ConstList;
 import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.tables.Memoizer;
@@ -164,11 +165,15 @@ public abstract class EExpr extends ENode {
         Scope newScope = scope.update((ScopeLayout)triple[1]);
         final byte[] code = (byte[]) E.callAll(compiler, "run", triple);
 
+        EvalContext context = newScope.newContext(0);
+        Slot[] outers = context.outers();
+        Object[] fields = null;
+
         GeneratedClassLoader loader = new GeneratedClassLoader();
         Class generated = loader.defineClass(code);
         try {
-            Constructor cons = generated.getConstructor(new Class[] {EvalContext.class});
-            return cons.newInstance(new Object[] {newScope.newContext(0)});
+            Constructor cons = generated.getConstructor(new Class[] {Slot[].class, Object[].class});
+            return cons.newInstance(new Object[] {outers, fields});
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
