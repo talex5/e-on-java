@@ -106,6 +106,21 @@ public class Ejector implements OneArgFunc, Runnable {
         return myResult;
     }
 
+    /** Like result/1, but also disable the ejector. */
+    public Object disableAndGetResult(Throwable t) {
+        Object result = myResult;
+        Object ejection = myEjection;
+
+        disable();
+
+        Throwable leaf = ThrowableSugar.leaf(t);
+        if (ejection == leaf && leaf != null) {
+            return result;
+        }
+
+        throw ExceptionMgr.asSafe(t);
+    }
+
     /**
      * Non-local exit returning null.
      * <p/>
