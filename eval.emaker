@@ -28,6 +28,7 @@ def max(a, b) {
 def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 	return def compile(mw, className :String) {
 		def eval
+		def evalRepresentation
 
 		def makeLabel := <asm:makeLabel>
 		def Opcodes := <asm:makeOpcodes>
@@ -152,10 +153,6 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			}
 		}
 
-		def evalDef(pattern, value) {
-			return testMatch(pattern, fn { eval(value) }, null)
-		}
-
 		def evalObjectDef(objExpr) {
 			return testMatch(objExpr.getOName(), fn {
 				def newObjClass := queueCompileInnerClass(objExpr)
@@ -179,7 +176,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					mw.constant(i);
 					traceln(`field $i (${i.__getAllegedType()})`)
 					# stack: object, context, array, array, i
-					eval(field)
+					evalRepresentation(field)
 					mw.storeToArray()
 				}
 
@@ -194,12 +191,35 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				match lNoun :LocalSlotNounExpr {
 					mw.loadLocal(mw.eLocalToJaveLocal(lNoun.getIndex()))
 				}
+				match fNoun :FrameSlotNounExpr {
+					def i := fNoun.getIndex()
+					mw.loadThis()
+					mw.loadOurField("fields", "[Ljava/lang/Object;")
+					mw.constant(i)
+					mw.loadFromArray()
+				}
 				match oNoun :OuterNounExpr {
 					def i := oNoun.getIndex()
 					mw.loadThis()
 					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
 					mw.constant(i)
 					mw.loadFromArray()
+				}
+			}
+		}
+
+		# When copying into fields, sometimes we want the value, sometimes we want the slot.
+		bind evalRepresentation(noun) {
+			traceln(`noun: $noun : ${noun.__getAllegedType()}`)
+			switch (noun) {
+				match x :FrameFinalNounExpr {
+					eval(x)
+				}
+				match x :LocalSlotNounExpr {
+					evalSlotExpr(x)
+				}
+				match x :LocalFinalNounExpr {
+					eval(x)
 				}
 			}
 		}
@@ -211,7 +231,6 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			traceln(`$noun (${noun.__getAllegedType()})`)
 			switch (noun) {
 				match lNoun :LocalSlotNounExpr {
-					def i := lNoun.getIndex()
 					evalSlotExpr(lNoun)
 					eval(value)
 					mw.dupX1()
@@ -224,6 +243,13 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					eval(value)
 					mw.dup()
 					mw.storeLocal(<op:ASTORE>, mw.eLocalToJaveLocal(i))
+				}
+				match fNoun :FrameSlotNounExpr {
+					evalSlotExpr(fNoun)
+					eval(value)
+					mw.dupX1()
+					mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
+							"(Ljava/lang/Object;)V")
 				}
 				match oNoun :OuterNounExpr {
 					def i := oNoun.getIndex()
@@ -362,15 +388,13 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					mw.constant(i)
 					mw.loadFromArray()
 					mw.invokeInterface("org/erights/e/elib/slot/Slot", "get", "()Ljava/lang/Object;")
-					return 2
 				}
 				match x :FrameFinalNounExpr {
 					def i := x.getIndex()
-					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "fields", "[Ljava/lang/Object;")
+					mw.loadThis()
+					mw.loadOurField("fields", "[Ljava/lang/Object;")
 					mw.constant(i)
-					mw.visitInsn(<op:AALOAD>)
-					return 2
+					mw.loadFromArray()
 				}
 				match x :LocalFinalNounExpr {
 					def i := x.getIndex()
@@ -387,11 +411,12 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				}
 				match x :FrameSlotNounExpr {
 					def i := x.getIndex()
-					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "fields", "[Ljava/lang/Object;")
+					mw.loadThis()
+					mw.loadOurField("fields", "[Ljava/lang/Object;")
 					mw.constant(i)
-					mw.visitInsn(<op:AALOAD>)
-					return 2
+					mw.loadFromArray()
+					mw.invokeInterface("org/erights/e/elib/slot/Slot", "get",
+							"()Ljava/lang/Object;")
 				}
 				match x :LiteralExpr {
 					switch (x.value()) {
@@ -431,9 +456,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					require(d.getOptEjectorExpr() == null)
 					def pattern := d.getPattern()
 					def value := d.getRValue()
-					traceln(`def $pattern (${pattern.__getAllegedType()})`)
-
-					return evalDef(pattern, value)
+					return testMatch(pattern, fn {eval(value)}, null)
 				}
 				match call :CallExpr {
 					def recipient := call.recipient()

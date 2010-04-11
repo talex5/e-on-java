@@ -20,12 +20,17 @@ try {
 	traceln("finally")
 }
 
-def foo {
-	to say() {
-		traceln(`foo says ...`)
+{
+	def field := 42
+	var slotField := 43
+	def foo {
+		to say() {
+			slotField += 1
+			traceln(`foo says $field, $slotField`)
+		}
 	}
+	foo.say()
 }
-foo.say()
 
 var i := 0
 i += 1
