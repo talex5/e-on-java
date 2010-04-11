@@ -72,6 +72,14 @@ def writerAuthor(<asm>) {
 		}
 
 		return def eMethodWriter {
+			to allocLocal() {
+				return allocLocal()
+			}
+
+			to releaseVar(v) {
+				releaseVar(v)
+			}
+
 			to eLocalToJaveLocal(i) {
 				return i + 1
 			}
@@ -132,6 +140,12 @@ def writerAuthor(<asm>) {
 
 			to invokeInterface(name :String, verb :String, type :String) {
 				mw.visitMethodInsn(<op:INVOKEINTERFACE>, name, verb, type)
+				stackFn(type)
+				stack(-1)	# this
+			}
+
+			to invokeVirtual(name :String, verb :String, type :String) {
+				mw.visitMethodInsn(<op:INVOKEVIRTUAL>, name, verb, type)
 				stackFn(type)
 				stack(-1)	# this
 			}
@@ -254,6 +268,47 @@ def writerAuthor(<asm>) {
 
 				releaseVar(tmp)
 				releaseVar(exVar)
+			}
+
+			# try:
+			#	attempt
+			# else:
+			#	# on success ...
+			# catch:
+			#	# on failure ...
+			to trySuccessFail(attemptMaker, successMaker, catchMaker) {
+				def startAttempt := makeLabel()
+				def endAttempt := makeLabel()
+				def catchBlock := makeLabel()
+				def done := makeLabel()
+
+				# XXX: check nesting. The JVM uses the first matching handler in the table.
+				mw.visitTryCatchBlock(startAttempt, endAttempt, catchBlock, null)
+
+				require(stackDepth == 0, `stack is $stackDepth at start of try block`)
+
+				mw.visitLabel(startAttempt)
+				attemptMaker()
+				mw.visitLabel(endAttempt)
+				# stack: attempt-results
+
+				successMaker()
+
+				def successStack := stackDepth
+
+				mw.visitJumpInsn(<op:GOTO>, done)
+
+				# Catch block
+				stackDepth := 1		# the exception
+				mw.visitLabel(catchBlock)
+
+				catchMaker()
+
+				# stack: catch-result
+				require(stackDepth == successStack, `success: $successStack, catch: $stackDepth`)
+
+				mw.visitLabel(done)
+				# stack: result
 			}
 
 			to endMethod() {
