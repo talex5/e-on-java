@@ -1,13 +1,55 @@
-var x := 0
-try {
-	x := 1
-	throw("foo")
-} finally {
-	traceln("finally!")
-	x := 2
+traceln("hi")
+traceln(`${1+1}`)
+
+if (1 == 1) {
+	try {} finally {}
+	traceln("yes")
+} else {
+	traceln("no")
 }
 
-traceln(`x = $x`)
+def a := 1
+{
+	def b := 2
+	traceln(`${a+b}`)
+}
+
+try {
+	traceln("here")
+} finally {
+	traceln("finally")
+}
+
+def foo {
+	to say() {
+		traceln(`foo says ...`)
+	}
+}
+foo.say()
+
+var i := 0
+i += 1
+traceln(`i = $i`)
+
+{
+var j := 10
+j += 10
+i += 1
+traceln(`sum = ${i+j}`)
+}
+
+#traceln(`got: ${escape foo {
+#	foo(7)
+#	1+1
+#	3+40
+#}}`)
+
+#catch result {
+#	traceln(`catch: $result`)
+#	8
+#}
+
+#traceln(`x = $x`)
 
 #for x in 1..10 {
 #	traceln(`x = $x`)

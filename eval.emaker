@@ -15,6 +15,7 @@ def FrameFinalNounExpr := <type:org.erights.e.elang.evm.FrameFinalNounExpr>
 def LocalSlotNounExpr := <type:org.erights.e.elang.evm.LocalSlotNounExpr>
 def FrameSlotNounExpr := <type:org.erights.e.elang.evm.FrameSlotNounExpr>
 def FinallyExpr := <type:org.erights.e.elang.evm.FinallyExpr>
+def EscapeExpr := <type:org.erights.e.elang.evm.EscapeExpr>
 
 def max(a, b) {
 	if (a > b) {
@@ -36,22 +37,6 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			}
 		}
 
-		var maxLocal := -100
-		var topUsedLocal := -100
-
-		def allocLocal() {
-			topUsedLocal += 1
-			if (topUsedLocal > maxLocal) {
-				maxLocal := topUsedLocal
-			}
-			return topUsedLocal
-		}
-
-		def releaseVar(n :int) {
-			require(n == topUsedLocal)
-			topUsedLocal -= 1
-		}
-
 		def evalGuard(guard, valueMaker) {
 			if (guard == null) {
 				return valueMaker()
@@ -59,26 +44,24 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 
 			#E.call(foo, "coerce", specimen, optEjector);
 			def guardStack := eval(guard)
-			mw.visitLdcInsn("coerce");
-			def maxStack := 2 + valueMaker() + 1
-			mw.visitInsn(<op:ACONST_NULL>)	# XXX
-			mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "call",
+			mw.constant("coerce");
+			valueMaker()
+			mw.constant(null)	# XXX
+			mw.invokeStatic("org/erights/e/elib/prim/E", "call",
 				"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
 			#mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/slot/Guard", "coerce",
 			#"(Ljava/lang/Object;Lorg/erights;Lorg/erights/e/elib/util/OneArgFunc;)Ljava/lang/Object;")
-			return maxStack
 		}
 
 		# => slot, value
 		def evalMakeSlot(pattern, valueMaker) {
 			def guard := pattern.getOptGuardExpr()
 
-			def valueStack := evalGuard(guard, valueMaker)
+			evalGuard(guard, valueMaker)
 
 			if (pattern =~ sp :SlotPattern) {
 				# The value is the slot
-				mw.visitInsn(<op:DUP>)
-				return max(2, valueStack)
+				mw.dup()
 			}
 
 			# Package top-most value in a slot
@@ -95,176 +78,167 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				}
 			}
 
-			mw.visitTypeInsn(<op:NEW>, slotType);
+			mw.new(slotType)
 			# stack: value, slot
-			mw.visitInsn(<op:SWAP>)
-			mw.visitInsn(<op:DUP2>)
+			mw.swap()
+			mw.dup2()
 			# stack: slot, value, slot, value
 
-			mw.visitMethodInsn(<op:INVOKESPECIAL>, slotType, "<init>",
-				"(Ljava/lang/Object;)V");
+			mw.invokeInit(slotType, "(Ljava/lang/Object;)V")
 
 			# stack: slot, value
-			return max(valueStack, 4)
-		}
-
-		def eLocalToJaveLocal(i) {
-			return i + 3
 		}
 
 		def evalEInt(value :int) {
 			# XXX: values longer than Long?
-			mw.visitLdcInsn(value :<type:long>)
-			mw.visitMethodInsn(<op:INVOKESTATIC>, "java/math/BigInteger", "valueOf",
-						"(J)Ljava/math/BigInteger;")
+			mw.constantLong(value)
+			mw.invokeStatic("java/math/BigInteger", "valueOf", "(J)Ljava/math/BigInteger;")
 			return 1
 		}
 
 		def evalIf(ifExpr) {
-			def testStack := eval(ifExpr.getTest())
-			#E.asBoolean(value)
-
-			mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "asBoolean",
+			eval(ifExpr.getTest())
+			mw.invokeStatic("org/erights/e/elib/prim/E", "asBoolean",
 				"(Ljava/lang/Object;)Z")
 
-			def elseBlock := makeLabel()
-			def done := makeLabel()
-
-			mw.visitJumpInsn(<op:IFEQ>, elseBlock)
-
-			def thenStack := eval(ifExpr.getThen())
-			mw.visitJumpInsn(<op:GOTO>, done)
-
-			mw.visitLabel(elseBlock)
-			def elseStack := eval(ifExpr.getElse())
-
-			mw.visitLabel(done)
-
-			return max(max(testStack, thenStack), elseStack)
+			mw.ifTrue(
+				fn { eval(ifExpr.getThen()) },
+				fn { eval(ifExpr.getElse()) }
+			)
 		}
 
-		def evalDefInteral(pattern, valueMaker) {
+		# Bind valueMaker() to pattern, calling ejector on failure.
+		# If ejector is null, throw an exception on failure.
+		# => ...
+		# <= value
+		def testMatch(pattern, valueMaker, ejector) {
+			require(ejector == null)
 			def guard := pattern.getOptGuardExpr()
 			def noun := pattern.getNoun()
 			traceln(`def $noun (${noun.__getAllegedType()})`)
 			switch (noun) {
 				match lsNoun :LocalSlotNounExpr {
 					def i := lsNoun.getIndex()
-					def stackSlot := evalMakeSlot(pattern, valueMaker)
-					mw.visitInsn(<op:DUP>)
-					mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
-					return stackSlot
+					evalMakeSlot(pattern, valueMaker)
+					mw.dupX1()
+					mw.pop()
+					# stack: value, slot
+					mw.storeLocal(mw.eLocalToJaveLocal(i))
 				}
 				match lNoun :LocalFinalNounExpr {
 					pattern :FinalPattern
 					def i := lNoun.getIndex()
-					def valueStack := evalGuard(guard, valueMaker)
-					mw.visitInsn(<op:DUP>)
-					mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
-					return valueStack
+					evalGuard(guard, valueMaker)
+					mw.dup()
+					mw.storeLocal(mw.eLocalToJaveLocal(i))
 				}
 				match oNoun :OuterNounExpr {
 					def i := oNoun.getIndex()
 					# this.outers[i] := new Slot(value)
-					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
+					mw.loadThis()
+					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
 					# stack: outers
-					def stackSlot := evalMakeSlot(pattern, valueMaker)
+					evalMakeSlot(pattern, valueMaker)
 					# stack: outers, slot, value
-					mw.visitInsn(<op:DUP_X2>)
-					mw.visitInsn(<op:POP>)
+					mw.dupX2()
+					mw.pop()
 					# stack: value, outers, slot
-					mw.visitLdcInsn(i)
-					mw.visitInsn(<op:SWAP>)
+					mw.constant(i)
+					mw.swap()
 					# stack: value, outers, i, slot
-					mw.visitInsn(<op:AASTORE>)
+					mw.storeToArray()
 					# stack: value
-					return 70
 				}
 			}
 		}
 
 		def evalDef(pattern, value) {
-			return evalDefInteral(pattern, fn { eval(value) })
+			return testMatch(pattern, fn { eval(value) }, null)
 		}
 
 		def evalObjectDef(objExpr) {
-			return evalDefInteral(objExpr.getOName(), fn {
+			return testMatch(objExpr.getOName(), fn {
 				def newObjClass := queueCompileInnerClass(objExpr)
 
 				def oName := objExpr.getOName()
 
-				mw.visitTypeInsn(<op:NEW>, newObjClass)
-				mw.visitInsn(<op:DUP>)
-				mw.visitVarInsn(<op:ALOAD>, 0);
-				mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
+				mw.new(newObjClass)
+				mw.dup()
+				mw.loadThis()
+				mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
 
 				# Create a new array for the fields (non-outer variables in scope of the object and
 				# used inside the object).
 				def fields := objExpr.optFieldNouns()
-				mw.visitIntInsn(<op:BIPUSH>, fields.size())
-				mw.visitTypeInsn(<op:ANEWARRAY>, "java/lang/Object")
+				mw.constant(fields.size())
+				mw.newArray("java/lang/Object")
 				# stack: object, context, array
 				var maxStack := 4
 				for i => field in fields {
-					mw.visitInsn(<op:DUP>)
-					mw.visitLdcInsn(i);
+					mw.dup()
+					mw.constant(i);
 					traceln(`field $i (${i.__getAllegedType()})`)
 					# stack: object, context, array, array, i
-					def stackForField := eval(field) + 5
-					mw.visitInsn(<op:AASTORE>)
-					if (stackForField > maxStack) {
-						maxStack := stackForField
-					}
+					eval(field)
+					mw.storeToArray()
 				}
 
-				mw.visitMethodInsn(<op:INVOKESPECIAL>, newObjClass, "<init>",
-					"([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V");
-
-				maxStack
-			})
+				mw.invokeInit(newObjClass, "([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V");
+			}, null)
 		}
 
-		def evalAssign(noun, value) {
-			switch (noun) {
-				match lNoun :LocalFinalNounExpr {
-					def i := lNoun.getIndex()
-					#def valueStack := evalGuard(guard, value)
-					def valueStack := eval(value)
-					mw.visitInsn(<op:DUP>)
-					mw.visitIntInsn(<op:ASTORE>, eLocalToJaveLocal(i))
-					return valueStack
+		# => slot
+		def evalSlotExpr(noun) {
+			#traceln(`evalSlotExpr($slotExpr :${slotExpr.getNoun().__getAllegedType()})`)
+			return switch (noun) {
+				match lNoun :LocalSlotNounExpr {
+					mw.loadLocal(mw.eLocalToJaveLocal(lNoun.getIndex()))
 				}
 				match oNoun :OuterNounExpr {
 					def i := oNoun.getIndex()
-					# push(this.context)
-					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
-					mw.visitLdcInsn(i)
-					# stack: array, i
-					mw.visitInsn(<op:AALOAD>)
-					def valueStack := eval(value)
-					# stack: slot, value
-					mw.visitInsn(<op:DUP_X1>)
-					# stack: value, slot, value
-					mw.visitMethodInsn(<op:INVOKEINTERFACE>, "org/erights/e/elib/slot/Slot", "put",
-							"(Ljava/lang/Object;)V")
-
-					return max(valueStack + 1, 3)
+					mw.loadThis()
+					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+					mw.constant(i)
+					mw.loadFromArray()
 				}
 			}
 		}
 
-		def evalSlotExpr(slotExpr) {
-			#traceln(`evalSlotExpr($slotExpr :${slotExpr.getNoun().__getAllegedType()})`)
-			return switch (slotExpr.getNoun()) {
+		# Update an existing slot
+		def evalAssign(assign) {
+			def noun := assign.getNoun()
+			def value := assign.getRValue()
+			traceln(`$noun (${noun.__getAllegedType()})`)
+			switch (noun) {
+				match lNoun :LocalSlotNounExpr {
+					def i := lNoun.getIndex()
+					evalSlotExpr(lNoun)
+					eval(value)
+					mw.dupX1()
+					mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
+							"(Ljava/lang/Object;)V")
+				}
+				match lNoun :LocalFinalNounExpr {
+					def i := lNoun.getIndex()
+					#def valueStack := evalGuard(guard, value)
+					eval(value)
+					mw.dup()
+					mw.storeLocal(<op:ASTORE>, mw.eLocalToJaveLocal(i))
+				}
 				match oNoun :OuterNounExpr {
 					def i := oNoun.getIndex()
-					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
-					mw.visitLdcInsn(i)
-					mw.visitInsn(<op:AALOAD>)
-					return 2
+					# push(this.context)
+					mw.loadThis()
+					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+					mw.constant(i)
+					# stack: array, i
+					mw.loadFromArray()
+					eval(value)
+					# stack: slot, value
+					mw.dupX1()
+					# stack: value, slot, value
+					mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
+							"(Ljava/lang/Object;)V")
 				}
 			}
 		}
@@ -285,81 +259,128 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			#   unwinder()
 			#   ret
 			# done:
+
+			mw.tryFinally(fn {
+				eval(finallyExpr.getAttempt())
+			}, fn {
+				eval(finallyExpr.getUnwinder())
+				mw.pop()
+			})
+		}
+
+		def evalEscape(escapeExpr) {
+			# ejectorTmp = new Ejector()
+			# try {
+			# startAttempt:
+			#   def ejector := ejectorTmp
+			#   attempt()
+			# endAttempt:
+			#   ejectorTmp.disable()
+			#   goto done
+			# } catch ex {
+			# catchBlock:
+			#   ejectorTmp.disable()
+			#   result := ejectorTmp.result(ex)	# Rethrows if not ours
+			#   (bind to arg and run catch block, if any)
+			#   }
+			# }
+			# done:
 			def startAttempt := makeLabel()
 			def endAttempt := makeLabel()
 			def catchBlock := makeLabel()
-			def finallyLabel := makeLabel()
 			def done := makeLabel()
 
+			require(escapeExpr.getOptCatcher() == null)
+
+			var name := escapeExpr.getExitPatt().getOptName()
+			if (name == null) {
+				name := "escape-expr"
+			}
+
+			mw.visitTypeInsn(<op:NEW>, "org/erights/e/elib/base/Ejector")
+			def ejectorVar := mw.allocLocal()
+			mw.visitInsn(<op:DUP>)
+			mw.constant(name)
+			mw.visitMethodInsn(<op:INVOKESPECIAL>, "org/erights/e/elib/base/Ejector", "<init>",
+					"(Ljava/lang/String;)V")
+			mw.visitIntInsn(<op:ASTORE>, ejectorVar)
+
 			mw.visitLabel(startAttempt)
-			def attemptStack := eval(finallyExpr.getAttempt())
+			def bindEjectorStack := testMatch(escapeExpr.getExitPatt(), fn {
+				mw.visitIntInsn(<op:ALOAD>, ejectorVar)
+				1
+			}, null)
+			mw.visitInsn(<op:POP>)
+			def attemptStack := max(bindEjectorStack, eval(escapeExpr.getRValue()))
 			mw.visitLabel(endAttempt)
-			mw.visitJumpInsn(<op:JSR>, finallyLabel)
+			# stack: value
+
+			mw.visitIntInsn(<op:ALOAD>, ejectorVar)
+			mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/base/Ejector", "disable", "()V")
+
 			mw.visitJumpInsn(<op:GOTO>, done)
 
 			# Catch block
 			mw.visitLabel(catchBlock)
-			def exVar := allocLocal()
-			mw.visitIntInsn(<op:ASTORE>, exVar)	# (must store the exception for type-checking)
-			mw.visitInsn(<op:ACONST_NULL>)		# (for consistent stack height)
-			mw.visitJumpInsn(<op:JSR>, finallyLabel)
-			mw.visitIntInsn(<op:ALOAD>, exVar)
-			mw.visitInsn(<op:ATHROW>)	# XXX
 
-			# Finally
-			# stack: value, returnAddress
-			mw.visitLabel(finallyLabel)
+			# stack: exception
 
-			def unwindStack := eval(finallyExpr.getUnwinder()) + 2
-			mw.visitInsn(<op:POP>)
+			mw.visitIntInsn(<op:ALOAD>, ejectorVar)
+			mw.visitInsn(<op:DUP>)
+			# stack: exception, ejector, ejector
+			mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/base/Ejector", "disable", "()V")
+			# stack: exception, ejector
+			mw.visitInsn(<op:SWAP>)
+			mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/base/Ejector", "result", "(Ljava/lang/Throwable;)Ljava/lang/Object;")
+			# stack: result
 
-			mw.visitIntInsn(<op:ASTORE>, 2)
-			mw.visitIntInsn(<op:RET>, 2)
+			def catcherStack := 2
+			#def catcherStack := eval(escapeExpr.getOptCatcher()) + 2	# XXX
 
 			mw.visitLabel(done)
+			# stack: result
 
+			# XXX: check nesting. The JVM uses the first matching handler in the table.
 			mw.visitTryCatchBlock(startAttempt, endAttempt, catchBlock, null)
 
-			releaseVar(exVar)
+			mw.releaseVar(ejectorVar)
 
-			return max(attemptStack, unwindStack)
+			return max(attemptStack, catcherStack)
 		}
 
+		# Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.
 		bind eval(item) {
 			traceln(`eval: $item : ${item.__getAllegedType()}`)
 			switch (item) {
 				match x :SlotExpr {
-					return evalSlotExpr(x)
+					evalSlotExpr(x.getNoun())
 				}
 				match x :OuterNounExpr {
 					def i := x.getIndex()
-					mw.visitVarInsn(<op:ALOAD>, 0);
-					mw.visitFieldInsn(<op:GETFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
-					mw.visitLdcInsn(i)
-					mw.visitInsn(<op:AALOAD>)
-					mw.visitMethodInsn(<op:INVOKEINTERFACE>, "org/erights/e/elib/slot/Slot", "get",
-							"()Ljava/lang/Object;")
+					mw.loadThis()
+					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+					mw.constant(i)
+					mw.loadFromArray()
+					mw.invokeInterface("org/erights/e/elib/slot/Slot", "get", "()Ljava/lang/Object;")
 					return 2
 				}
 				match x :FrameFinalNounExpr {
 					def i := x.getIndex()
 					mw.visitVarInsn(<op:ALOAD>, 0);
 					mw.visitFieldInsn(<op:GETFIELD>, className, "fields", "[Ljava/lang/Object;")
-					mw.visitLdcInsn(i)
+					mw.constant(i)
 					mw.visitInsn(<op:AALOAD>)
 					return 2
 				}
 				match x :LocalFinalNounExpr {
 					def i := x.getIndex()
-					mw.visitIntInsn(<op:ALOAD>, eLocalToJaveLocal(i))
-					return 1
+					mw.loadLocal(mw.eLocalToJaveLocal(i))
 				}
 				match x :LocalSlotNounExpr {
 					def i := x.getIndex()
-					mw.visitIntInsn(<op:ALOAD>, eLocalToJaveLocal(i))
-					mw.visitMethodInsn(<op:INVOKEINTERFACE>, "org/erights/e/elib/slot/Slot", "get",
+					mw.loadLocal(mw.eLocalToJaveLocal(i))
+					mw.invokeInterface("org/erights/e/elib/slot/Slot", "get",
 							"()Ljava/lang/Object;")
-					return 1
 				}
 				match x :FinallyExpr {
 					return evalFinally(x)
@@ -368,7 +389,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					def i := x.getIndex()
 					mw.visitVarInsn(<op:ALOAD>, 0);
 					mw.visitFieldInsn(<op:GETFIELD>, className, "fields", "[Ljava/lang/Object;")
-					mw.visitLdcInsn(i)
+					mw.constant(i)
 					mw.visitInsn(<op:AALOAD>)
 					return 2
 				}
@@ -378,7 +399,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 							return evalEInt(i)
 						}
 						match s :String {
-							mw.visitLdcInsn(s)
+							mw.constant(s)
 							return 1
 						}
 					}
@@ -390,23 +411,23 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					return evalIf(x)
 				}
 				match x :AssignExpr {
-					return evalAssign(x.getNoun(), x.getRValue())
+					evalAssign(x)
 				}
 				match x :SeqExpr {
 					var maxStack := 0
 					def last := x.subs().size() - 1
 					for i => expr in x.subs() {
-						def exprStack := eval(expr)
-						if (exprStack > maxStack) {
-							maxStack := exprStack
-						}
+						eval(expr)
 						if (i != last) {
-							mw.visitInsn(<op:POP>)
+							mw.pop()
 						}
 					}
 					return maxStack
 				}
-				match d : DefineExpr {
+				match x :EscapeExpr {
+					return evalEscape(x)
+				}
+				match d :DefineExpr {
 					require(d.getOptEjectorExpr() == null)
 					def pattern := d.getPattern()
 					def value := d.getRValue()
@@ -415,40 +436,29 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					return evalDef(pattern, value)
 				}
 				match call :CallExpr {
-					var maxStack := 0
 					def recipient := call.recipient()
-					maxStack := eval(recipient) + 2
-					mw.visitLdcInsn(call.verb())
+					eval(recipient)
+					mw.constant(call.verb())
 
-					mw.visitIntInsn(<op:BIPUSH>, call.args().size())
-					mw.visitTypeInsn(<op:ANEWARRAY>, "java/lang/Object")
+					mw.constant(call.args().size())
+					mw.newArray("java/lang/Object")
 					# stack: recipient, verb, array
 					for i => arg in call.args() {
-						mw.visitInsn(<op:DUP>)
-						mw.visitLdcInsn(i);
+						mw.dup()
+						mw.constant(i)
 						# stack: recipient, verb, array, array, i
-						def stackForArg := eval(arg) + 5
-						mw.visitInsn(<op:AASTORE>)
-						if (stackForArg > maxStack) {
-							maxStack := stackForArg
-						}
+						eval(arg)
+						mw.storeToArray()
 					}
-					mw.visitMethodInsn(<op:INVOKESTATIC>, "org/erights/e/elib/prim/E", "callAll",
+					mw.invokeStatic("org/erights/e/elib/prim/E", "callAll",
 						"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
-					return maxStack
 				}
 			}
 		}
 
 		return def compiler {
-			to run(code, nELocals) {
-				maxLocal := nELocals + 3 - 1
-				topUsedLocal := maxLocal
+			to run(code) {
 				return eval(code)
-			}
-
-			to getLocalsNeeded() {
-				return maxLocal + 1
 			}
 		}
 	}

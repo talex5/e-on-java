@@ -8,6 +8,7 @@ def <op> {
 		return E.call(Opcodes, `get$code`, [])
 	}
 }
+def makeEMethodWriter := <this:writer>(<asm>)
 
 var nInner := 0
 def innerClasses := [].diverge()
@@ -54,35 +55,22 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 		def scriptMethods := script.getOptMethods()
 		for m in scriptMethods {
 			def name := m.getVerb()
-			def mw := cw.visitMethod(<op:ACC_PUBLIC>,
-						name, "()Ljava/lang/Object;",
-						null, null)
+			def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, name, "()Ljava/lang/Object;", nLocals)
 
-			def compiler := makeMethodCompiler(mw, className)
-			def stackSize := compiler.run(m.getBody, nLocals)
+			def compiler := makeMethodCompiler(emw, className)
+			compiler.run(m.getBody())
 
-			println(`$className.$name : ss = $stackSize`)
-
-			mw.visitMaxs(stackSize + 1, compiler.getLocalsNeeded())
-
-			mw.visitInsn(<op:ARETURN>)
-			mw.visitEnd()
+			emw.aReturn()
+			emw.endMethod()
 		}
 	} else {
-		def mw := cw.visitMethod(<op:ACC_PUBLIC>,
-					"run", "()Ljava/lang/Object;",
-					null, null)
+		def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, "run", "()Ljava/lang/Object;", nLocals)
 
-		def compiler := makeMethodCompiler(mw, className)
-		def stackSize := compiler.run(transformed, nLocals)
+		def compiler := makeMethodCompiler(emw, className)
+		compiler.run(transformed)
 
-		println(`$className : ss = $stackSize`)
-		println(`$className : locals = ${compiler.getLocalsNeeded()}`)
-
-		mw.visitMaxs(stackSize + 1, compiler.getLocalsNeeded())
-
-		mw.visitInsn(<op:ARETURN>)
-		mw.visitEnd()
+		emw.aReturn()
+		emw.endMethod()
 	}
 
 	def code := cw.toByteArray()
