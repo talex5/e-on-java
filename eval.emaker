@@ -20,8 +20,10 @@ def FinallyExpr := <type:org.erights.e.elang.evm.FinallyExpr>
 def EscapeExpr := <type:org.erights.e.elang.evm.EscapeExpr>
 def JavaMemberNode := <type:org.erights.e.elib.prim.JavaMemberNode>
 def SugarMethodNode := <type:org.erights.e.elib.prim.SugarMethodNode>
+def FinalSlot := <type:org.erights.e.elib.slot.FinalSlot>
 def JavaMethod := <type:java.lang.reflect.Method>
 def JavaClass := <type:java.lang.Class>
+def Void := <type:java.lang.Void>
 
 def max(a, b) {
 	if (a > b) {
@@ -43,13 +45,16 @@ def asTypeDescriptor(member) {
 		}
 		match c :JavaClass {
 			def name := c.getFQName().replaceAll(".", "/")
-			return `L$name;`
+			return switch (name) {
+				match `java/lang/Void` { "V" }
+				match _ { return `L$name;` }
+			}
 		}
 	}
 }
 
-def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
-	return def compile(mw, className :String) {
+def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
+	return def compile(mw, className :String, knownOuters :List) {
 		def eval
 		def evalRepresentation
 
@@ -150,7 +155,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 			}
 
 			def noun := pattern.getNoun()
-			traceln(`def $noun (${noun.__getAllegedType()})`)
+			println(`def $noun (${noun.__getAllegedType()})`)
 			switch (noun) {
 				match lsNoun :LocalSlotNounExpr {
 					def i := lsNoun.getIndex()
@@ -208,7 +213,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 				for i => field in fields {
 					mw.dup()
 					mw.constant(i);
-					traceln(`field $i (${i.__getAllegedType()})`)
+					println(`field $i (${i.__getAllegedType()})`)
 					# stack: object, context, array, array, i
 					evalRepresentation(field)
 					mw.storeToArray()
@@ -244,7 +249,6 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 
 		# When copying into fields, sometimes we want the value, sometimes we want the slot.
 		bind evalRepresentation(noun) {
-			traceln(`noun: $noun : ${noun.__getAllegedType()}`)
 			switch (noun) {
 				match x :FrameFinalNounExpr {
 					eval(x)
@@ -262,7 +266,6 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 		def evalAssign(assign) {
 			def noun := assign.getNoun()
 			def value := assign.getRValue()
-			traceln(`$noun (${noun.__getAllegedType()})`)
 			switch (noun) {
 				match lNoun :LocalSlotNounExpr {
 					evalSlotExpr(lNoun)
@@ -398,6 +401,15 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 			# stack: result
 		}
 
+		def boxResult(type) {
+			def `(@_)@rtype` := type
+			switch (rtype) {
+				match `L@_;` { } # Do nothing 
+				match `[@_;` { } # Do nothing 
+				match `V` { mw.constantNull("Ljava/lang/Object;") }
+			}
+		}
+
 		def evalCall(call) {
 			def recipient := call.recipient()
 			def arity := call.args().size()
@@ -410,22 +422,32 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 			def short := try {
 				script.shorten(null, call.verb(), arity)
 			} catch ex {
-				traceln(`failed to resolve $call; will do it the slow way`)
+				println(`failed to resolve $call ($ex); will do it the slow way`)
 				null
 			}
-			traceln(`got: $short`)
 			if (short != null && short.isJavaTypedParameterNode()) {
 				def member := short.member()
-				traceln(`could shorten $member`)
-			} else if (short =~ sugar :SugarMethodNode) {
-				def member := short.member()
-				traceln(`using sugar method $member`)
+				println(`using direct $member`)
 				for i => arg in call.args() {
 					eval(arg)	# TODO: cast
 				}
+				def type := asTypeDescriptor(member)
+				mw.invokeVirtual(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
+						call.verb(),
+						type)
+				boxResult(type)
+				return
+			} else if (short =~ sugar :SugarMethodNode) {
+				def member := short.member()
+				println(`using sugar method $member`)
+				for i => arg in call.args() {
+					eval(arg)	# TODO: cast
+				}
+				def type := asTypeDescriptor(member)
 				mw.invokeStatic(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
 						call.verb(),
-						asTypeDescriptor(member))
+						type)
+				boxResult(type)
 				return
 			}
 
@@ -447,18 +469,47 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 
 		# Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.
 		bind eval(item) {
-			traceln(`eval: $item : ${item.__getAllegedType()}`)
+			#println(`eval: $item : ${item.__getAllegedType()}`)
+			println(`eval: ${item.__getAllegedType()}`)
 			switch (item) {
 				match x :SlotExpr {
 					evalSlotExpr(x.getNoun())
 				}
 				match x :OuterNounExpr {
 					def i := x.getIndex()
-					mw.loadThis()
-					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
-					mw.constant(i)
-					mw.loadFromArray()
-					mw.invokeInterface("org/erights/e/elib/slot/Slot", "get", "()Ljava/lang/Object;")
+					def currentValue := knownOuters[i]
+					def unknown {}
+					def knownValue := if (currentValue != null && currentValue =~ finalSlot :FinalSlot) {
+						finalSlot.get()
+					} else {
+						unknown
+					}
+					switch (knownValue) {
+						match ==true {
+							mw.constant(1)
+						}
+						match ==false {
+							mw.constant(0)
+						}
+						match ==null {
+							mw.constantNull("Ljava/lang/Object;")
+						}
+						match _ {
+							mw.loadThis()
+							mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+							mw.constant(i)
+							mw.loadFromArray()
+							mw.invokeInterface("org/erights/e/elib/slot/Slot", "get", "()Ljava/lang/Object;")
+							if (knownValue != unknown) {
+								def javaType := knownValue.__getAllegedType().getFQName()
+								if (javaType =~ `@{_}__Maker`) {
+								} else {
+									def jvmType := javaType.replaceAll(".", "/")
+									mw.cast(jvmType)
+								}
+							}
+						}
+					}
 				}
 				match x :FrameFinalNounExpr {
 					def i := x.getIndex()

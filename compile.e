@@ -22,9 +22,9 @@ def queueCompileInnerClass(objExpr) {
 
 def scriptMaker := <unsafe:org.erights.e.elib.prim.makeScriptMaker>.getTHE_ONE()
 
-def makeMethodCompiler := <this:eval>(<asm>, queueCompileInnerClass, scriptMaker)
+def makeMethodCompiler := <this:eval>(<asm>, queueCompileInnerClass, scriptMaker, println)
 
-def compileOne(className, transformed, scopeLayout, nLocals) {
+def compileOne(className, transformed, scopeLayout, nLocals, knownOuters) {
 	def cw := <asm:makeClassWriter>(0)
 	cw.visit(<op:V1_1>, <op:ACC_PUBLIC>, className, null, "java/lang/Object", null)
 
@@ -60,7 +60,7 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 			def args := "Ljava/lang/Object;" * m.getPatterns().size()
 			def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, name, `($args)Ljava/lang/Object;`, m.getLocalCount())
 
-			def compiler := makeMethodCompiler(emw, className)
+			def compiler := makeMethodCompiler(emw, className, knownOuters)
 			compiler.run(m)
 
 			emw.aReturn()
@@ -69,7 +69,7 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 	} else {
 		def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, "run", "()Ljava/lang/Object;", nLocals)
 
-		def compiler := makeMethodCompiler(emw, className)
+		def compiler := makeMethodCompiler(emw, className, knownOuters)
 		compiler.run(transformed)
 
 		emw.aReturn()
@@ -81,12 +81,12 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 	return code
 }
 
-def compile(transformed, scopeLayout, nLocals) {
-	def root := compileOne("Test", transformed, scopeLayout, nLocals)
+def compile(transformed, scopeLayout, nLocals, knownOuters) {
+	def root := compileOne("Test", transformed, scopeLayout, nLocals, knownOuters)
 	while (innerClasses.size() > 0) {
 		def [name, objExpr] := innerClasses.pop()
 		def script := objExpr.getScript()
-		compileOne(name, script, script.getScopeLayout(), 0)
+		compileOne(name, script, script.getScopeLayout(), 0, knownOuters)
 	}
 	return root
 }

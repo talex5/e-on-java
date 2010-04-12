@@ -93,7 +93,7 @@ def writerAuthor(<asm>, println) {
 			if (stackType.size() > maxStackDepth) {
 				maxStackDepth := stackType.size()
 			}
-			println(`stack: $stackType`)
+			#println(`stack: $stackType`)
 		}
 
 		def topType(n :(int >= 1)) {
@@ -107,7 +107,7 @@ def writerAuthor(<asm>, println) {
 		def unstack(n :int) {
 			require(stackType.size() >= n)
 			stackType := stackType(0, stackType.size() - n)
-			println(`stack: $stackType`)
+			#println(`stack: $stackType`)
 		}
 
 		# Update stack for a call to type, ignoring "this"
@@ -432,6 +432,12 @@ def writerAuthor(<asm>, println) {
 
 				mw.visitLabel(done)
 				# stack: result
+			}
+
+			to cast(type) {
+				mw.visitTypeInsn(<op:CHECKCAST>, type)
+				unstack(1)
+				stack(`L$type;`)
 			}
 
 			to endMethod() {
