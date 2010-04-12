@@ -188,6 +188,11 @@ def writerAuthor(<asm>, println) {
 				stack(type)
 			}
 
+			to loadStatic(targetClassName :String, fieldName :String, type :String) {
+				mw.visitFieldInsn(<op:GETSTATIC>, targetClassName, fieldName, type)
+				stack(type)
+			}
+
 			to loadFromArray() {
 				mw.visitInsn(<op:AALOAD>)
 				def arrayType := topType(2)

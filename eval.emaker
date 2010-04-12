@@ -486,10 +486,10 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 					}
 					switch (knownValue) {
 						match ==true {
-							mw.constant(1)
+							mw.loadStatic("java/lang/Boolean", "TRUE", "Ljava/lang/Boolean;")
 						}
 						match ==false {
-							mw.constant(0)
+							mw.loadStatic("java/lang/Boolean", "FALSE", "Ljava/lang/Boolean;")
 						}
 						match ==null {
 							mw.constantNull("Ljava/lang/Object;")
