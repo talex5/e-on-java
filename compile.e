@@ -26,7 +26,7 @@ def makeMethodCompiler := <this:eval>(<asm>, queueCompileInnerClass, scriptMaker
 
 def compileOne(className, transformed, scopeLayout, nLocals, knownOuters) {
 	def cw := <asm:makeClassWriter>(0)
-	cw.visit(<op:V1_1>, <op:ACC_PUBLIC>, className, null, "java/lang/Object", null)
+	cw.visit(<op:V1_1>, <op:ACC_PUBLIC> | <op:ACC_FINAL>, className, null, "java/lang/Object", null)
 
 	cw.visitField(<op:ACC_PRIVATE>, "outers", "[Lorg/erights/e/elib/slot/Slot;", null, null)
 	cw.visitField(<op:ACC_PRIVATE>, "fields", "[Ljava/lang/Object;", null, null)
