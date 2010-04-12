@@ -8,7 +8,7 @@ def <op> {
 		return E.call(Opcodes, `get$code`, [])
 	}
 }
-def makeEMethodWriter := <this:writer>(<asm>)
+def makeEMethodWriter := <this:writer>(<asm>, println)
 
 var nInner := 0
 def innerClasses := [].diverge()

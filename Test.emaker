@@ -3,7 +3,7 @@
 #}
 #foo(3)
 
-#traceln("hi")
+traceln("hi")
 #traceln(`${1+1}`)
 #
 #if (1 == 1) {
@@ -65,13 +65,13 @@
 #	traceln(`reason = $reason`)
 #}
 
-def test() {
-	for x in 1..100000 {
-		x
-		#traceln(`x = $x`)
-	}
-	return "ok"
-}
+#def test() {
+#	for x in 1..100000 {
+#		x
+#		#traceln(`x = $x`)
+#	}
+#	return "ok"
+#}
 
 #traceln(`got: ${escape foo {
 #	foo(7)

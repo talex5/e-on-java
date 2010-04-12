@@ -15,11 +15,32 @@ def countArgs(sig) {
 	return nArgs
 }
 
+def returnType(type :String) {
+	def `(@_)@rtype` := type
+	return rtype
+}
+
 require(countArgs("(Ljava/lang/String;II)V") == 3)
 require(countArgs("([Ljava/lang/String;II)V") == 3)
 require(countArgs("()V") == 0)
 
-def writerAuthor(<asm>) {
+def unifyBranchTypes(stackA, stackB) {
+	require(stackA.size() == stackB.size(), `Different lengths: $stackA vs $stackB`)
+
+	def result := [].diverge()
+	for i => a in stackA {
+		def b := stackB[i]
+		if (a == b) {
+			result.push(a)
+		} else {
+			require(a[0] == "L" && b[0] == "L")
+			result.push("Ljava/lang/Object;")
+		}
+	}
+	return result.snapshot()
+}
+
+def writerAuthor(<asm>, println) {
 	def makeLabel := <asm:makeLabel>
 	def Opcodes := <asm:makeOpcodes>
 	def <op> {
@@ -38,12 +59,16 @@ def writerAuthor(<asm>) {
 		}
 
 		var maxStackDepth := 0
-		var stackDepth := 0
+
+		def localType := [].asMap().diverge()	# int => Java type
+		var stackType :List := []		# Java types
+
+		localType[0] := `L$className;`	# this
 
 		var topUsedLocal := nArgs + nELocals - 1
 		var maxLocal := topUsedLocal
 
-		traceln(`nELocals = $nELocals, args = $nArgs`)
+		println(`nELocals = $nELocals, args = $nArgs`)
 
 		def allocLocal() {
 			topUsedLocal += 1
@@ -58,21 +83,35 @@ def writerAuthor(<asm>) {
 			topUsedLocal -= 1
 		}
 
-		def stack(n :int) {
-			stackDepth += n
-			require(stackDepth >= 0)
-			if (stackDepth > maxStackDepth) {
-				maxStackDepth := stackDepth
+		def stackAll(types :List) {
+			stackType := stackType + types
+			if (stackType.size() > maxStackDepth) {
+				maxStackDepth := stackType.size()
 			}
+			println(`stack: $stackType`)
+		}
+
+		def topType(n :(int >= 1)) {
+			return stackType[stackType.size() - n]
+		}
+
+		def stack(type :String) {
+			stackAll([type])
+		}
+
+		def unstack(n :int) {
+			require(stackType.size() >= n)
+			stackType := stackType(0, stackType.size() - n)
+			println(`stack: $stackType`)
 		}
 
 		# Update stack for a call to type, ignoring "this"
 		def stackFn(type :String) {
-			stack(0 - countArgs(type))
+			unstack(countArgs(type))
 			if (type =~ `@_)V`) {
 				return
 			}
-			stack(1)	# The return value gets stacked
+			stack(returnType(type))
 		}
 
 		return def eMethodWriter {
@@ -90,18 +129,29 @@ def writerAuthor(<asm>) {
 
 			to constantLong(value) {
 				mw.visitLdcInsn(value :<type:long>)
-				stack(1)
+				stack("J")
 			}
 
 			to constant(value) {
-				if (value =~ x :(int < 256)) {
-					mw.visitIntInsn(<op:BIPUSH>, x)
-				} else if (value == null) {
-					mw.visitInsn(<op:ACONST_NULL>)
-				} else {
-					mw.visitLdcInsn(value)
+				switch (value) {
+					match x :(int < 256) {
+						mw.visitIntInsn(<op:BIPUSH>, x)
+						stack("B")
+					}
+					match x :int {
+						mw.visitLdcInsn(value)
+						stack("I")
+					}
+					match x :String {
+						mw.visitLdcInsn(value)
+						stack("Ljava/lang/String;")
+					}
 				}
-				stack(1)
+			}
+
+			to constantNull(type :String) {
+				mw.visitInsn(<op:ACONST_NULL>)
+				stack(type)
 			}
 
 			to invokeStatic(klass, verb, type) {
@@ -112,7 +162,7 @@ def writerAuthor(<asm>) {
 			to invokeInit(targetClassName :String, type :String) {
 				mw.visitMethodInsn(<op:INVOKESPECIAL>, targetClassName, "<init>", type)
 				stackFn(type)
-				stack(-1)
+				unstack(1)
 			}
 
 			to loadThis() {
@@ -125,104 +175,120 @@ def writerAuthor(<asm>) {
 
 			to loadField(targetClassName :String, fieldName :String, type :String) {
 				mw.visitFieldInsn(<op:GETFIELD>, targetClassName, fieldName, type)
+				unstack(1)
+				stack(type)
 			}
 
 			to loadFromArray() {
 				mw.visitInsn(<op:AALOAD>)
-				stack(-1)	# array, index => value
+				def arrayType := topType(2)
+				unstack(2)	# array, index => value
+				require(arrayType[0] == '[')
+				stack(arrayType(1))
 			}
 
 			to loadLocal(n :int) {
 				mw.visitVarInsn(<op:ALOAD>, n)
-				stack(1)
+				stack(localType[n])
 			}
 
 			to storeLocal(n :int) {
 				mw.visitVarInsn(<op:ASTORE>, n)
-				stack(-1)
+				localType[n] := stackType[stack.size() - 1]
+				unstack(1)
 			}
 
 			to invokeInterface(name :String, verb :String, type :String) {
 				mw.visitMethodInsn(<op:INVOKEINTERFACE>, name, verb, type)
+				unstack(1)	# this
 				stackFn(type)
-				stack(-1)	# this
 			}
 
 			to invokeVirtual(name :String, verb :String, type :String) {
 				mw.visitMethodInsn(<op:INVOKEVIRTUAL>, name, verb, type)
+				unstack(1)	# this
 				stackFn(type)
-				stack(-1)	# this
 			}
 
 			to new(type :String) {
 				mw.visitTypeInsn(<op:NEW>, type)
-				stack(1)
+				stack(type)
 			}
 
 			to newArray(type :String) {
 				mw.visitTypeInsn(<op:ANEWARRAY>, type)
 				# 0: nItems => array
+				unstack(1)
+				stack(`[$type`)
 			}
 
 			to storeToArray() {
 				mw.visitInsn(<op:AASTORE>)
-				stack(-3)	# array, index, value
+				unstack(3)	# array, index, value
 			}
 
 			to dup() {
 				mw.visitInsn(<op:DUP>)
-				stack(1)
+				stack(topType(1))
 			}
 
 			to dup2() {
 				mw.visitInsn(<op:DUP2>)
-				stack(2)
+				stack(topType(2))
+				stack(topType(2))
 			}
 
 			to pop() {
 				mw.visitInsn(<op:POP>)
-				stack(-1)
+				unstack(1)
 			}
 
 			to swap() {
 				mw.visitInsn(<op:SWAP>)
+				def a := stackType.size() - 1
+				def b := stackType.size() - 2
+				[stackType[a], stackType[b]] := [stackType[b], stackType[a]]
 			}
 
 			to dupX1() {
 				mw.visitInsn(<op:DUP_X1>)
-				stack(1)
+				def types := stackType(stackType.size() - 2)
+				unstack(2)
+				stackAll([types[1]] + types)
 			}
 
 			to dupX2() {
 				mw.visitInsn(<op:DUP_X2>)
-				stack(1)
+				def types := stackType(stackType.size() - 3)
+				unstack(3)
+				stackAll([types[2]] + types)
 			}
 
 			# Stack contains boolean.
 			# If true, execute instructions generated by thenMaker()
 			# If false, execute elseMaker()
 			to ifTrue(thenMaker, elseMaker) {
-				require(stackDepth == 1)
-
 				def elseBlock := makeLabel()
 				def done := makeLabel()
 
+				require(topType(1) == "B")
+
 				mw.visitJumpInsn(<op:IFEQ>, elseBlock)
-				stack(-1)
-				def oldStack := stackDepth
+				unstack(1)
+				def oldStack := stackType
 
 				thenMaker()
-				def thenStack := stackDepth
+				def thenStack := stackType
 				mw.visitJumpInsn(<op:GOTO>, done)
 
-				stackDepth := oldStack
+				stackType := oldStack
 				mw.visitLabel(elseBlock)
 				elseMaker()
-				def elseStack := stackDepth
+				def elseStack := stackType
 
 				mw.visitLabel(done)
 
-				require(thenStack == elseStack, `then stack gives $thenStack; else gives $elseStack)`)
+				stackType := unifyBranchTypes(thenStack, elseStack)
 			}
 
 			to tryFinally(attemptMaker, finallyMaker) {
@@ -234,29 +300,28 @@ def writerAuthor(<asm>) {
 
 				mw.visitTryCatchBlock(startAttempt, endAttempt, catchBlock, null)
 
-				require(stackDepth == 0, `stack is $stackDepth at start of try block`)
+				require(stackType.size() == 0, `stack is not empty at start of try block`)
 
 				mw.visitLabel(startAttempt)
 				attemptMaker()
 				mw.visitLabel(endAttempt)
-				def attemptStack := stackDepth
+				def attemptStack := stackType
 				mw.visitJumpInsn(<op:JSR>, finallyLabel)
 				mw.visitJumpInsn(<op:GOTO>, done)
 
 				# Catch block
-				stackDepth := 1		# the exception
+				stackType := ["Ljava/lang/Throwable;"].diverge()
 				mw.visitLabel(catchBlock)
 				def exVar := allocLocal()
 				eMethodWriter.storeLocal(exVar)	# (must store the exception for type-checking)
-				eMethodWriter.constant(null)		# (for consistent stack height)
-				def catchStack := stackDepth
+				eMethodWriter.constantNull("Ljava/lang/Object;")		# (for consistent stack height)
+				def catchStack := stackType
 				mw.visitJumpInsn(<op:JSR>, finallyLabel)
 				eMethodWriter.loadLocal(exVar)
 				mw.visitInsn(<op:ATHROW>)
 
 				# Finally
-				require(catchStack == attemptStack, `attempt: $attemptStack, catch: $catchStack`)
-				stackDepth := catchStack
+				stackType := unifyBranchTypes(attemptStack, catchStack)
 
 				# stack: value, returnAddress
 				mw.visitLabel(finallyLabel)
@@ -268,7 +333,7 @@ def writerAuthor(<asm>) {
 				mw.visitIntInsn(<op:RET>, tmp)
 
 				mw.visitLabel(done)
-				stackDepth := attemptStack
+				stackType := attemptStack
 
 				releaseVar(tmp)
 				releaseVar(exVar)
@@ -279,24 +344,23 @@ def writerAuthor(<asm>) {
 				# to local variables first.
 				# save stack
 				def stacked := [].diverge()
-				while (stackDepth > 0) {
+				while (stackType.size() > 0) {
 					def lVar := allocLocal()
 					eMethodWriter.storeLocal(lVar)
 					stacked.push(lVar)
 				}
 
-				def oldStack := stackDepth
 				maker()
 
 				# store results
 				def stackedResults := [].diverge()
-				while (stackDepth > 0) {
+				while (stackType.size() > 0) {
 					def lVar := allocLocal()
 					eMethodWriter.storeLocal(lVar)
 					stackedResults.push(lVar)
 				}
 
-				require(oldStack == stackDepth)
+				require(stackType == [])
 
 				def toRelease := [].diverge()
 
@@ -334,7 +398,7 @@ def writerAuthor(<asm>) {
 				# XXX: check nesting. The JVM uses the first matching handler in the table.
 				mw.visitTryCatchBlock(startAttempt, endAttempt, catchBlock, null)
 
-				require(stackDepth == 0, `stack is $stackDepth at start of try block`)
+				require(stackType.size() == 0, `stack is not empty at start of try block`)
 
 				mw.visitLabel(startAttempt)
 				attemptMaker()
@@ -343,25 +407,25 @@ def writerAuthor(<asm>) {
 
 				successMaker()
 
-				def successStack := stackDepth
+				def successStack := stackType
 
 				mw.visitJumpInsn(<op:GOTO>, done)
 
 				# Catch block
-				stackDepth := 1		# the exception
+				stackType := ["Ljava/lang/Throwable;"].diverge()
 				mw.visitLabel(catchBlock)
 
 				catchMaker()
 
 				# stack: catch-result
-				require(stackDepth == successStack, `success: $successStack, catch: $stackDepth`)
+				stackType := unifyBranchTypes(successStack, stackType)
 
 				mw.visitLabel(done)
 				# stack: result
 			}
 
 			to endMethod() {
-				traceln(`endMethod: ss = ${maxStackDepth}, locals = ${maxLocal + 1}`)
+				println(`endMethod: ss = ${maxStackDepth}, locals = ${maxLocal + 1}`)
 				mw.visitMaxs(maxStackDepth + 1, maxLocal + 1)
 				mw.visitEnd()
 				mw := null
