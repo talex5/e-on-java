@@ -72,7 +72,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 			valueMaker()
 
 			if (ejector == null) {
-				mw.constant(null)
+				mw.constantNull("Lorg/erights/e/elib/base/Ejector;")
 			} else {
 				eval(ejector)
 			}
@@ -407,9 +407,14 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 			def recipientJavaTypeDecl := mw.topType(1)
 			def `L@javaType;` := recipientJavaTypeDecl
 			def script := scriptMaker.instanceScript(<type>[javaType.replaceAll("/", ".")])
-			def short := script.shorten(null, call.verb(), arity)
+			def short := try {
+				script.shorten(null, call.verb(), arity)
+			} catch ex {
+				traceln(`failed to resolve $call; will do it the slow way`)
+				null
+			}
 			traceln(`got: $short`)
-			if (short.isJavaTypedParameterNode()) {
+			if (short != null && short.isJavaTypedParameterNode()) {
 				def member := short.member()
 				traceln(`could shorten $member`)
 			} else if (short =~ sugar :SugarMethodNode) {

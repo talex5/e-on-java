@@ -50,20 +50,25 @@ def writerAuthor(<asm>, println) {
 	}
 
 	return def makeWriter(cw, className :String, flags, methodName :String, type :String, nELocals :int) {
-		var mw := cw.visitMethod(flags, methodName, type, null, null)
+		def localType := [].asMap().diverge()	# int => Java type
+		var stackType :List := []		# Java types
+
+		localType[0] := `L$className;`	# this
 
 		var nArgs := countArgs(type)
+
+		# TODO: get from type
+		for i in 0..nArgs {
+			localType[i + 1] := "Ljava/lang/Object;"
+		}
+
+		var mw := cw.visitMethod(flags, methodName, type, null, null)
 
 		if ((flags & <op:ACC_STATIC>) == 0) {
 			nArgs += 1	# Allocate a local for "this"
 		}
 
 		var maxStackDepth := 0
-
-		def localType := [].asMap().diverge()	# int => Java type
-		var stackType :List := []		# Java types
-
-		localType[0] := `L$className;`	# this
 
 		var topUsedLocal := nArgs + nELocals - 1
 		var maxLocal := topUsedLocal
@@ -198,7 +203,7 @@ def writerAuthor(<asm>, println) {
 
 			to storeLocal(n :int) {
 				mw.visitVarInsn(<op:ASTORE>, n)
-				localType[n] := stackType[stack.size() - 1]
+				localType[n] := topType(1)
 				unstack(1)
 			}
 
@@ -249,9 +254,10 @@ def writerAuthor(<asm>, println) {
 
 			to swap() {
 				mw.visitInsn(<op:SWAP>)
-				def a := stackType.size() - 1
-				def b := stackType.size() - 2
-				[stackType[a], stackType[b]] := [stackType[b], stackType[a]]
+				def a := topType(1)
+				def b := topType(2)
+				unstack(2)
+				stackAll([a, b])
 			}
 
 			to dupX1() {
@@ -314,7 +320,7 @@ def writerAuthor(<asm>, println) {
 				mw.visitJumpInsn(<op:GOTO>, done)
 
 				# Catch block
-				stackType := ["Ljava/lang/Throwable;"].diverge()
+				stackType := ["Ljava/lang/Throwable;"]
 				mw.visitLabel(catchBlock)
 				def exVar := allocLocal()
 				eMethodWriter.storeLocal(exVar)	# (must store the exception for type-checking)
@@ -416,7 +422,7 @@ def writerAuthor(<asm>, println) {
 				mw.visitJumpInsn(<op:GOTO>, done)
 
 				# Catch block
-				stackType := ["Ljava/lang/Throwable;"].diverge()
+				stackType := ["Ljava/lang/Throwable;"]
 				mw.visitLabel(catchBlock)
 
 				catchMaker()
