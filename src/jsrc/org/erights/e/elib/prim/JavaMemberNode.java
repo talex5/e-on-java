@@ -209,7 +209,7 @@ public abstract class JavaMemberNode extends MethodNode implements EStackItem {
     /**
      *
      */
-    protected Member member() {
+    public Member member() {
         return myMember;
     }
 

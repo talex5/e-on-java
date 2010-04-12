@@ -274,4 +274,8 @@ public class EMethod extends ENode {
         out.print(" ");
         myBody.printAsBlockOn(out);
     }
+
+    public int getLocalCount() {
+        return myLocalCount;
+    }
 }
