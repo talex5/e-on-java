@@ -55,10 +55,11 @@ def compileOne(className, transformed, scopeLayout, nLocals) {
 		def scriptMethods := script.getOptMethods()
 		for m in scriptMethods {
 			def name := m.getVerb()
-			def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, name, "()Ljava/lang/Object;", nLocals)
+			def args := "Ljava/lang/Object;" * m.getPatterns().size()
+			def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, name, `($args)Ljava/lang/Object;`, m.getLocalCount())
 
 			def compiler := makeMethodCompiler(emw, className)
-			compiler.run(m.getBody())
+			compiler.run(m)
 
 			emw.aReturn()
 			emw.endMethod()

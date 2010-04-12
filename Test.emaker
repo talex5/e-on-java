@@ -1,3 +1,29 @@
+def foo(x :float64) {
+	traceln(`foo($x)`)
+}
+foo(3)
+
+#def var validFlag__1 := true
+#try {
+#    __makeOrderedSpace.op__thru(1, 10).iterate(/** For-loop body */
+#    def _ {
+#
+#        method run(key__3, value__5) {
+#            require.run(validFlag__1, "For-loop body isn't valid after for-loop exits.")
+#            escape ej__7 {
+#                def _ exit ej__7 := key__3
+#                def x exit ej__7 := value__5
+#                traceln.run(simple__quasiParser.valueMaker("x = ${0}").substitute(__makeList.run(x)))
+#                null
+#            } catch _ {
+#                null
+#            }
+#        }
+#    })
+#} finally {
+#    validFlag__1 := false
+#}
+
 #traceln("hi")
 #traceln(`${1+1}`)
 #
@@ -54,11 +80,11 @@
 #}
 #traceln(`x = $x`)
 
-escape foo {
-	def x :String exit foo := 3
-} catch reason {
-	traceln(`reason = $reason`)
-}
+#escape foo {
+#	def x :String exit foo := 3
+#} catch reason {
+#	traceln(`reason = $reason`)
+#}
 
 #for x in 1..10 {
 #	traceln(`x = $x`)

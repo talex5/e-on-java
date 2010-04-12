@@ -1,3 +1,24 @@
+def countArgs(sig) {
+	def `(@args)@_` := sig
+	var i:= 0
+	var nArgs := 0
+
+	while (i < args.size()) {
+		if (args[i] != '[') {
+			nArgs += 1
+			if (args[i] == 'L') {
+				i := args.indexOf1(';', i)
+			}
+		}
+		i += 1
+	}
+	return nArgs
+}
+
+require(countArgs("(Ljava/lang/String;II)V") == 3)
+require(countArgs("([Ljava/lang/String;II)V") == 3)
+require(countArgs("()V") == 0)
+
 def writerAuthor(<asm>) {
 	def makeLabel := <asm:makeLabel>
 	def Opcodes := <asm:makeOpcodes>
@@ -7,18 +28,22 @@ def writerAuthor(<asm>) {
 		}
 	}
 
-	return def makeWriter(cw, className :String, flags, methodName :String, type :String, var nELocals) {
+	return def makeWriter(cw, className :String, flags, methodName :String, type :String, nELocals :int) {
 		var mw := cw.visitMethod(flags, methodName, type, null, null)
 
+		var nArgs := countArgs(type)
+
 		if ((flags & <op:ACC_STATIC>) == 0) {
-			nELocals += 1	# Allocate a local for "this"
+			nArgs += 1	# Allocate a local for "this"
 		}
 
 		var maxStackDepth := 0
 		var stackDepth := 0
 
-		var topUsedLocal := nELocals - 1
+		var topUsedLocal := nArgs + nELocals - 1
 		var maxLocal := topUsedLocal
+
+		traceln(`nELocals = $nELocals, args = $nArgs`)
 
 		def allocLocal() {
 			topUsedLocal += 1
@@ -41,27 +66,6 @@ def writerAuthor(<asm>) {
 			}
 		}
 
-		def countArgs(sig) {
-			def `(@args)@_` := sig
-			var i:= 0
-			var nArgs := 0
-
-			while (i < args.size()) {
-				if (args[i] != '[') {
-					nArgs += 1
-					if (args[i] == 'L') {
-						i := args.indexOf1(';', i)
-					}
-				}
-				i += 1
-			}
-			return nArgs
-		}
-
-		require(countArgs("(Ljava/lang/String;II)V") == 3)
-		require(countArgs("([Ljava/lang/String;II)V") == 3)
-		require(countArgs("()V") == 0)
-
 		# Update stack for a call to type, ignoring "this"
 		def stackFn(type :String) {
 			stack(0 - countArgs(type))
@@ -81,7 +85,7 @@ def writerAuthor(<asm>) {
 			}
 
 			to eLocalToJaveLocal(i) {
-				return i + 1
+				return i + nArgs
 			}
 
 			to constantLong(value) {

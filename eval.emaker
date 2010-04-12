@@ -1,3 +1,4 @@
+def EMethod := <type:org.erights.e.elang.evm.EMethod>
 def ObjectExpr := <type:org.erights.e.elang.evm.ObjectExpr>
 def IgnorePattern := <type:org.erights.e.elang.evm.IgnorePattern>
 def FinalPattern := <type:org.erights.e.elang.evm.FinalPattern>
@@ -433,6 +434,12 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				}
 				match x :ObjectExpr {
 					return evalObjectDef(x)
+				}
+				match x :EMethod {
+					for i => arg in x.getPatterns() {
+						testMatch(arg, fn { mw.loadLocal(i + 1) }, null)
+					}
+					return eval(x.getBody())
 				}
 				match x :IfExpr {
 					return evalIf(x)
