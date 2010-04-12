@@ -20,7 +20,9 @@ def queueCompileInnerClass(objExpr) {
 	return name
 }
 
-def makeMethodCompiler := <this:eval>(<asm>, queueCompileInnerClass)
+def scriptMaker := <unsafe:org.erights.e.elib.prim.makeScriptMaker>.getTHE_ONE()
+
+def makeMethodCompiler := <this:eval>(<asm>, queueCompileInnerClass, scriptMaker)
 
 def compileOne(className, transformed, scopeLayout, nLocals) {
 	def cw := <asm:makeClassWriter>(0)

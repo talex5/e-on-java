@@ -115,6 +115,10 @@ def writerAuthor(<asm>, println) {
 		}
 
 		return def eMethodWriter {
+			to topType(n :(int >= 1)) {
+				return topType(n)
+			}
+
 			to allocLocal() {
 				return allocLocal()
 			}

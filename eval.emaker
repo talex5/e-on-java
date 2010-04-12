@@ -18,6 +18,10 @@ def LocalSlotNounExpr := <type:org.erights.e.elang.evm.LocalSlotNounExpr>
 def FrameSlotNounExpr := <type:org.erights.e.elang.evm.FrameSlotNounExpr>
 def FinallyExpr := <type:org.erights.e.elang.evm.FinallyExpr>
 def EscapeExpr := <type:org.erights.e.elang.evm.EscapeExpr>
+def JavaMemberNode := <type:org.erights.e.elib.prim.JavaMemberNode>
+def SugarMethodNode := <type:org.erights.e.elib.prim.SugarMethodNode>
+def JavaMethod := <type:java.lang.reflect.Method>
+def JavaClass := <type:java.lang.Class>
 
 def max(a, b) {
 	if (a > b) {
@@ -27,7 +31,24 @@ def max(a, b) {
 	}
 }
 
-def makeMethodCompiler(<asm>, queueCompileInnerClass) {
+def asTypeDescriptor(member) {
+	switch (member) {
+		match m :JavaMethod {
+			var sig := "("
+			for param in member.getParameterTypes() {
+				sig += asTypeDescriptor(param)
+			}
+			sig += ")" + asTypeDescriptor(m.getReturnType())
+			return sig
+		}
+		match c :JavaClass {
+			def name := c.getFQName().replaceAll(".", "/")
+			return `L$name;`
+		}
+	}
+}
+
+def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker) {
 	return def compile(mw, className :String) {
 		def eval
 		def evalRepresentation
@@ -377,6 +398,48 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			# stack: result
 		}
 
+		def evalCall(call) {
+			def recipient := call.recipient()
+			def arity := call.args().size()
+			eval(recipient)
+
+			# See if we can determine the method statically
+			def recipientJavaTypeDecl := mw.topType(1)
+			def `L@javaType;` := recipientJavaTypeDecl
+			def script := scriptMaker.instanceScript(<type>[javaType.replaceAll("/", ".")])
+			def short := script.shorten(null, call.verb(), arity)
+			traceln(`got: $short`)
+			if (short.isJavaTypedParameterNode()) {
+				def member := short.member()
+				traceln(`could shorten $member`)
+			} else if (short =~ sugar :SugarMethodNode) {
+				def member := short.member()
+				traceln(`using sugar method $member`)
+				for i => arg in call.args() {
+					eval(arg)	# TODO: cast
+				}
+				mw.invokeStatic(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
+						call.verb(),
+						asTypeDescriptor(member))
+				return
+			}
+
+			mw.constant(call.verb())
+
+			mw.constant(arity)
+			mw.newArray("java/lang/Object")
+			# stack: recipient, verb, array
+			for i => arg in call.args() {
+				mw.dup()
+				mw.constant(i)
+				# stack: recipient, verb, array, array, i
+				eval(arg)
+				mw.storeToArray()
+			}
+			mw.invokeStatic("org/erights/e/elib/prim/E", "callAll",
+				"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
+		}
+
 		# Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.
 		bind eval(item) {
 			traceln(`eval: $item : ${item.__getAllegedType()}`)
@@ -467,22 +530,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					return testMatch(pattern, fn {eval(value)}, d.getOptEjectorExpr())
 				}
 				match call :CallExpr {
-					def recipient := call.recipient()
-					eval(recipient)
-					mw.constant(call.verb())
-
-					mw.constant(call.args().size())
-					mw.newArray("java/lang/Object")
-					# stack: recipient, verb, array
-					for i => arg in call.args() {
-						mw.dup()
-						mw.constant(i)
-						# stack: recipient, verb, array, array, i
-						eval(arg)
-						mw.storeToArray()
-					}
-					mw.invokeStatic("org/erights/e/elib/prim/E", "callAll",
-						"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
+					evalCall(call)
 				}
 			}
 		}
