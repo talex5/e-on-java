@@ -91,6 +91,17 @@ def compile(transformed, scopeLayout, nLocals) {
 
 def [source] := interp.getArgs()
 def eCode := <elang:syntax.makeEParser>(<file>[source].getTwine())
-def compiled := eCode.compile(safeScope, compile)
+def compiled := eCode.compile(safeScope, compile)()
 println(`c: $compiled`)
+println(`compiled: ${compiled()}`)
+def t1 := timer.now()
 compiled()
+def t2 := timer.now()
+
+def interpreted := <this:Test>
+println(`interpreted: ${interpreted()}`)
+def t3 := timer.now()
+interpreted()
+def t4 := timer.now()
+println(`compiled ran in ${t2-t1} ms`)
+println(`interpreted ran in ${t4-t3} ms`)
