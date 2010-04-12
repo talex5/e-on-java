@@ -43,13 +43,26 @@
 #traceln(`sum = ${i+j}`)
 #}
 
-def x := escape foo {
-	traceln("in foo")
-	foo(7)
-	null
-	null
+#var x := -1
+#escape foo {
+#	traceln("in foo")
+#	foo(7)
+#	null
+#	83
+#} catch r {
+#	x := 100 + r
+#}
+#traceln(`x = $x`)
+
+escape foo {
+	def x :String exit foo := 3
+} catch reason {
+	traceln(`reason = $reason`)
 }
-traceln(`x = $x`)
+
+#for x in 1..10 {
+#	traceln(`x = $x`)
+#}
 
 #traceln(`got: ${escape foo {
 #	foo(7)

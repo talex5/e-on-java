@@ -1,4 +1,5 @@
 def ObjectExpr := <type:org.erights.e.elang.evm.ObjectExpr>
+def IgnorePattern := <type:org.erights.e.elang.evm.IgnorePattern>
 def FinalPattern := <type:org.erights.e.elang.evm.FinalPattern>
 def SlotPattern := <type:org.erights.e.elang.evm.SlotPattern>
 def VarPattern := <type:org.erights.e.elang.evm.VarPattern>
@@ -38,7 +39,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			}
 		}
 
-		def evalGuard(guard, valueMaker) {
+		def evalGuard(guard, valueMaker, ejector) {
 			if (guard == null) {
 				return valueMaker()
 			}
@@ -47,7 +48,13 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			def guardStack := eval(guard)
 			mw.constant("coerce");
 			valueMaker()
-			mw.constant(null)	# XXX
+
+			if (ejector == null) {
+				mw.constant(null)
+			} else {
+				eval(ejector)
+			}
+
 			mw.invokeStatic("org/erights/e/elib/prim/E", "call",
 				"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
 			#mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/slot/Guard", "coerce",
@@ -58,7 +65,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 		def evalMakeSlot(pattern, valueMaker) {
 			def guard := pattern.getOptGuardExpr()
 
-			evalGuard(guard, valueMaker)
+			evalGuard(guard, valueMaker, null)	# XXX
 
 			if (pattern =~ sp :SlotPattern) {
 				# The value is the slot
@@ -108,13 +115,18 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 			)
 		}
 
-		# Bind valueMaker() to pattern, calling ejector on failure.
+		# Bind valueMaker() to pattern, calling eval(ejector) on failure.
 		# If ejector is null, throw an exception on failure.
 		# => ...
 		# <= value
 		def testMatch(pattern, valueMaker, ejector) {
-			require(ejector == null)
 			def guard := pattern.getOptGuardExpr()
+
+			if (pattern =~ _ :IgnorePattern) {
+				evalGuard(guard, valueMaker, ejector)
+				return
+			}
+
 			def noun := pattern.getNoun()
 			traceln(`def $noun (${noun.__getAllegedType()})`)
 			switch (noun) {
@@ -129,7 +141,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				match lNoun :LocalFinalNounExpr {
 					pattern :FinalPattern
 					def i := lNoun.getIndex()
-					evalGuard(guard, valueMaker)
+					evalGuard(guard, valueMaker, ejector)
 					mw.dup()
 					mw.storeLocal(mw.eLocalToJaveLocal(i))
 				}
@@ -327,8 +339,6 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				mw.invokeInit("org/erights/e/elib/base/Ejector", "(Ljava/lang/String;)V")
 				mw.storeLocal(ejectorVar)
 
-				require(escapeExpr.getOptCatcher() == null)
-
 				mw.trySuccessFail(fn {
 					testMatch(escapeExpr.getExitPatt(), fn { mw.loadLocal(ejectorVar) }, null)
 					mw.pop()
@@ -349,6 +359,15 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disableAndGetResult",
 							"(Ljava/lang/Throwable;)Ljava/lang/Object;")
 					# stack: result
+
+					if (escapeExpr.getOptCatcher() =~ catcher :notNull) {
+						def tmp := ejectorVar	# reuse
+						# process result with catch block
+						mw.storeLocal(tmp)
+						testMatch(escapeExpr.getOptArgPattern(), fn { mw.loadLocal(tmp) }, null)
+						mw.pop()
+						eval(catcher)
+					}
 				})
 
 				mw.releaseVar(ejectorVar)
@@ -436,10 +455,9 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 					return evalEscape(x)
 				}
 				match d :DefineExpr {
-					require(d.getOptEjectorExpr() == null)
 					def pattern := d.getPattern()
 					def value := d.getRValue()
-					return testMatch(pattern, fn {eval(value)}, null)
+					return testMatch(pattern, fn {eval(value)}, d.getOptEjectorExpr())
 				}
 				match call :CallExpr {
 					def recipient := call.recipient()
