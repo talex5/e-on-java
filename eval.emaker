@@ -126,9 +126,14 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 
 		def evalEInt(value :int) {
 			# XXX: values longer than Long?
-			mw.constantLong(value)
-			mw.invokeStatic("java/math/BigInteger", "valueOf", "(J)Ljava/math/BigInteger;")
-			return 1
+			switch (value) {
+				match ==0 { mw.loadStatic("java/math/BigInteger", "ZERO", "Ljava/math/BigInteger;") }
+				match ==1 { mw.loadStatic("java/math/BigInteger", "ONE", "Ljava/math/BigInteger;") }
+				match _ {
+					mw.constantLong(value)
+					mw.invokeStatic("java/math/BigInteger", "valueOf", "(J)Ljava/math/BigInteger;")
+				}
+			}
 		}
 
 		def evalIf(ifExpr) {
