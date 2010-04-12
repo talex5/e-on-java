@@ -163,11 +163,14 @@ public abstract class EExpr extends ENode {
         ScopeLayout oldLayout = scope.getScopeLayout();
         Object[] triple = transform(this, oldLayout);
         Scope newScope = scope.update((ScopeLayout)triple[1]);
-        final byte[] code = (byte[]) E.callAll(compiler, "run", triple);
 
         EvalContext context = newScope.newContext(0);
         Slot[] outers = context.outers();
         Object[] fields = null;
+
+        Object[] args = new Object[] {triple[0], triple[1], triple[2], outers};
+
+        final byte[] code = (byte[]) E.callAll(compiler, "run", args);
 
         GeneratedClassLoader loader = new GeneratedClassLoader();
         Class generated = loader.defineClass(code);
