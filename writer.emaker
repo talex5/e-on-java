@@ -270,6 +270,51 @@ def writerAuthor(<asm>) {
 				releaseVar(exVar)
 			}
 
+			to saveStack(maker) {
+				# The JVM clears the stack when an exception is thrown, so copy it
+				# to local variables first.
+				# save stack
+				def stacked := [].diverge()
+				while (stackDepth > 0) {
+					def lVar := allocLocal()
+					eMethodWriter.storeLocal(lVar)
+					stacked.push(lVar)
+				}
+
+				def oldStack := stackDepth
+				maker()
+
+				# store results
+				def stackedResults := [].diverge()
+				while (stackDepth > 0) {
+					def lVar := allocLocal()
+					eMethodWriter.storeLocal(lVar)
+					stackedResults.push(lVar)
+				}
+
+				require(oldStack == stackDepth)
+
+				def toRelease := [].diverge()
+
+				# restore stack
+				while (stacked.size() > 0) {
+					def v := stacked.pop()
+					eMethodWriter.loadLocal(v)
+					toRelease.push(v)
+				}
+
+				# restore results
+				while (stackedResults.size() > 0) {
+					def v := stackedResults.pop()
+					eMethodWriter.loadLocal(v)
+					releaseVar(v)
+				}
+
+				for v in toRelease {
+					releaseVar(v)
+				}
+			}
+
 			# try:
 			#	attempt
 			# else:

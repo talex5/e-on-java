@@ -317,40 +317,44 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass) {
 				name := "escape-expr"
 			}
 
-			mw.new("org/erights/e/elib/base/Ejector")
-			def ejectorVar := mw.allocLocal()
-			mw.dup()
-			mw.constant(name)
-			mw.invokeInit("org/erights/e/elib/base/Ejector", "(Ljava/lang/String;)V")
-			mw.storeLocal(ejectorVar)
+			# The JVM clears the stack when an exception is thrown, so copy it
+			# to local variables first.
+			mw.saveStack(fn {
+				mw.new("org/erights/e/elib/base/Ejector")
+				def ejectorVar := mw.allocLocal()
+				mw.dup()
+				mw.constant(name)
+				mw.invokeInit("org/erights/e/elib/base/Ejector", "(Ljava/lang/String;)V")
+				mw.storeLocal(ejectorVar)
 
-			require(escapeExpr.getOptCatcher() == null)
+				require(escapeExpr.getOptCatcher() == null)
 
-			mw.trySuccessFail(fn {
-				testMatch(escapeExpr.getExitPatt(), fn { mw.loadLocal(ejectorVar) }, null)
-				mw.pop()
-				eval(escapeExpr.getRValue())
-			}, fn {
-				# on success ...
-				# stack: result
-				mw.loadLocal(ejectorVar)
-				mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disable", "()V")
-			}, fn {
-				# on failure ...
-				# stack: exception
+				mw.trySuccessFail(fn {
+					testMatch(escapeExpr.getExitPatt(), fn { mw.loadLocal(ejectorVar) }, null)
+					mw.pop()
+					eval(escapeExpr.getRValue())
+				}, fn {
+					# on success ...
+					# stack: result
+					mw.loadLocal(ejectorVar)
+					mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disable", "()V")
+				}, fn {
+					# on failure ...
+					# stack: exception
 
-				mw.loadLocal(ejectorVar)
-				mw.swap()
-				# stack: ejector, exception
-				# will re-throw if it's not ours
-				mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disableAndGetResult",
-						"(Ljava/lang/Throwable;)Ljava/lang/Object;")
-				# stack: result
+					mw.loadLocal(ejectorVar)
+					mw.swap()
+					# stack: ejector, exception
+					# will re-throw if it's not ours
+					mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disableAndGetResult",
+							"(Ljava/lang/Throwable;)Ljava/lang/Object;")
+					# stack: result
+				})
+
+				mw.releaseVar(ejectorVar)
 			})
 
 			# stack: result
-
-			mw.releaseVar(ejectorVar)
 		}
 
 		# Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.
