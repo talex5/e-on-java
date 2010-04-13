@@ -1,3 +1,10 @@
+def test() {
+	var x := 0
+	while (x < 10000000) {
+		x += 1
+	}
+}
+
 #def foo(x :float64) {
 #	traceln(`foo($x)`)
 #}
@@ -64,14 +71,14 @@
 #	traceln(`reason = $reason`)
 #}
 
-def test() {
-	for x in 1..100000 {
-		#x
-		#traceln(`x = $x`)
-	}
-	return "ok"
-}
-
+#def test() {
+#	for x in 1..100000 {
+#		#x
+#		#traceln(`x = $x`)
+#	}
+#	return "ok"
+#}
+#
 #traceln(`got: ${escape foo {
 #	foo(7)
 #	1+1

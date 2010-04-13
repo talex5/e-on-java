@@ -415,13 +415,45 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 			}
 		}
 
-		def evalCall(call) {
-			def recipient := call.recipient()
-			def arity := call.args().size()
-			eval(recipient)
+		def evalArgsWithCasts(javaMethod :JavaMethod, args :List) {
+			def types := javaMethod.getParameterTypes()
+			for i => arg in args {
+				eval(arg)	# TODO: cast
+				def required := types[i].getFQName()
+				def have := mw.topType(1)
+				if (required != have) {
+					# TODO: already a subclass?
+					mw.cast(required.replaceAll(".", "/"))
+				}
+			}
+		}
 
+		# recipient is already stacked
+		def evalCallInternal(call) {
+			def arity := call.args().size()
 			# See if we can determine the method statically
 			def recipientJavaTypeDecl := mw.topType(1)
+
+			if (recipientJavaTypeDecl == "Lorg/erights/e/elang/interp/Loop;" && call.verb() == "run" && arity == 1) {
+				# __loop.run(loopBody)
+				# Expand this to:
+				# while (loopBody.run()) {}
+				mw.pop()	# wasteful
+				eval(call.args()[0])
+				mw.whileTrue(fn {
+					mw.dup()
+					evalCallInternal(def fakeCall {
+						to args() { return [] }
+						to verb() { return "run" }
+					})
+					mw.invokeStatic("org/erights/e/elib/prim/E", "asBoolean",
+						"(Ljava/lang/Object;)Z")
+				})
+				mw.pop()
+				mw.constantNull("Ljava/lang/Object;")
+				return
+			}
+
 			def `L@javaType;` := recipientJavaTypeDecl
 			def script := scriptMaker.instanceScript(<type>[javaType.replaceAll("/", ".")])
 			def short := try {
@@ -433,9 +465,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 			if (short != null && short.isJavaTypedParameterNode()) {
 				def member := short.member()
 				println(`using direct $member`)
-				for i => arg in call.args() {
-					eval(arg)	# TODO: cast
-				}
+				evalArgsWithCasts(member, call.args())
 				def type := asTypeDescriptor(member)
 				mw.invokeVirtual(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
 						call.verb(),
@@ -445,9 +475,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 			} else if (short =~ sugar :SugarMethodNode) {
 				def member := short.member()
 				println(`using sugar method $member`)
-				for i => arg in call.args() {
-					eval(arg)	# TODO: cast
-				}
+				evalArgsWithCasts(member, call.args())
 				def type := asTypeDescriptor(member)
 				mw.invokeStatic(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
 						call.verb(),
@@ -482,6 +510,12 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 						"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
 				}
 			}
+		}
+
+		def evalCall(call) {
+			def recipient := call.recipient()
+			eval(recipient)
+			evalCallInternal(call)
 		}
 
 		# Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.

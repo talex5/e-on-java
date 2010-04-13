@@ -226,7 +226,7 @@ def writerAuthor(<asm>, println) {
 
 			to new(type :String) {
 				mw.visitTypeInsn(<op:NEW>, type)
-				stack(type)
+				stack(`L$type;`)
 			}
 
 			to newArray(type :String) {
@@ -286,7 +286,7 @@ def writerAuthor(<asm>, println) {
 				def elseBlock := makeLabel()
 				def done := makeLabel()
 
-				require(topType(1) == "B")
+				require(topType(1) == "Z", `type must be boolean, not ${topType(1)}`)
 
 				mw.visitJumpInsn(<op:IFEQ>, elseBlock)
 				unstack(1)
@@ -454,6 +454,17 @@ def writerAuthor(<asm>, println) {
 
 			to aReturn() {
 				mw.visitInsn(<op:ARETURN>)
+			}
+
+			# while (value) { }
+			to whileTrue(valueMaker) {
+				def start := makeLabel()
+				mw.visitLabel(start)
+
+				valueMaker()
+
+				require(topType(1) == "Z", `type must be boolean, not ${topType(1)}`)
+				mw.visitJumpInsn(<op:IFNE>, start)
 			}
 		}
 	}
