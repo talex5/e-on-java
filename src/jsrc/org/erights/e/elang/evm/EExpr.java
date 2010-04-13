@@ -166,7 +166,6 @@ public abstract class EExpr extends ENode {
 
         EvalContext context = newScope.newContext(0);
         Slot[] outers = context.outers();
-        Object[] fields = null;
 
         Object[] args = new Object[] {triple[0], triple[1], triple[2], outers};
 
@@ -175,8 +174,8 @@ public abstract class EExpr extends ENode {
         GeneratedClassLoader loader = new GeneratedClassLoader();
         Class generated = loader.defineClass(code);
         try {
-            Constructor cons = generated.getConstructor(new Class[] {Slot[].class, Object[].class});
-            return cons.newInstance(new Object[] {outers, fields});
+            Constructor cons = generated.getConstructor(new Class[] {Slot[].class});
+            return cons.newInstance(new Object[] {outers});
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

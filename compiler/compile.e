@@ -13,10 +13,10 @@ def makeEMethodWriter := <this:writer>(<asm>, println)
 var nInner := 0
 def innerClasses := [].diverge()
 
-def queueCompileInnerClass(objExpr) {
+def queueCompileInnerClass(objExpr, fieldTypes) {
     def name := `e/generated/inner${nInner}`
     nInner += 1
-    innerClasses.push([name, objExpr])
+    innerClasses.push([name, objExpr, fieldTypes])
     return name
 }
 
@@ -24,16 +24,18 @@ def scriptMaker := <unsafe:org.erights.e.elib.prim.makeScriptMaker>.getTHE_ONE()
 
 def makeMethodCompiler := <this:eval>(<asm>, queueCompileInnerClass, scriptMaker, println)
 
-def compileOne(className, transformed, scopeLayout, nLocals, knownOuters) {
+def compileOne(className, transformed, scopeLayout, nLocals, knownOuters, fieldTypes :List[String]) {
     def cw := <asm:makeClassWriter>(0)
     cw.visit(<op:V1_1>, <op:ACC_PUBLIC> | <op:ACC_FINAL>, className, null, "java/lang/Object", null)
 
     cw.visitField(<op:ACC_PRIVATE>, "outers", "[Lorg/erights/e/elib/slot/Slot;", null, null)
-    cw.visitField(<op:ACC_PRIVATE>, "fields", "[Ljava/lang/Object;", null, null)
+    for i => fieldType in fieldTypes {
+        cw.visitField(<op:ACC_PRIVATE>, `field$i`, fieldType, null, null)
+    }
 
     # Constructor
     def cons := cw.visitMethod(<op:ACC_PUBLIC>, "<init>",
-        "([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V",
+        `([Lorg/erights/e/elib/slot/Slot;${"".rjoin(fieldTypes)})V`,
         null,
         null)
     # pushes the 'this' variable
@@ -45,9 +47,11 @@ def compileOne(className, transformed, scopeLayout, nLocals, knownOuters) {
     cons.visitVarInsn(<op:ALOAD>, 1);
     cons.visitFieldInsn(<op:PUTFIELD>, className, "outers", "[Lorg/erights/e/elib/slot/Slot;")
 
-    cons.visitVarInsn(<op:ALOAD>, 0);
-    cons.visitVarInsn(<op:ALOAD>, 2);
-    cons.visitFieldInsn(<op:PUTFIELD>, className, "fields", "[Ljava/lang/Object;")
+    for i => fieldType in fieldTypes {
+        cons.visitVarInsn(<op:ALOAD>, 0);
+        cons.visitVarInsn(<op:ALOAD>, i + 2);
+        cons.visitFieldInsn(<op:PUTFIELD>, className, `field$i`, fieldType)
+    }
 
     cons.visitInsn(<op:RETURN>);
     cons.visitMaxs(3, 3);
@@ -60,7 +64,7 @@ def compileOne(className, transformed, scopeLayout, nLocals, knownOuters) {
             def args := "Ljava/lang/Object;" * m.getPatterns().size()
             def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, name, `($args)Ljava/lang/Object;`, m.getLocalCount())
 
-            def compiler := makeMethodCompiler(emw, className, knownOuters)
+            def compiler := makeMethodCompiler(emw, className, knownOuters, fieldTypes)
             compiler.run(m)
 
             emw.aReturn()
@@ -69,7 +73,7 @@ def compileOne(className, transformed, scopeLayout, nLocals, knownOuters) {
     } else {
         def emw := makeEMethodWriter(cw, className, <op:ACC_PUBLIC>, "run", "()Ljava/lang/Object;", nLocals)
 
-        def compiler := makeMethodCompiler(emw, className, knownOuters)
+        def compiler := makeMethodCompiler(emw, className, knownOuters, fieldTypes)
         compiler.run(transformed)
 
         emw.aReturn()
@@ -82,11 +86,11 @@ def compileOne(className, transformed, scopeLayout, nLocals, knownOuters) {
 }
 
 def compile(transformed, scopeLayout, nLocals, knownOuters) {
-    def root := compileOne("Test", transformed, scopeLayout, nLocals, knownOuters)
+    def root := compileOne("Test", transformed, scopeLayout, nLocals, knownOuters, [])
     while (innerClasses.size() > 0) {
-        def [name, objExpr] := innerClasses.pop()
+        def [name, objExpr, fieldTypes] := innerClasses.pop()
         def script := objExpr.getScript()
-        compileOne(name, script, script.getScopeLayout(), 0, knownOuters)
+        compileOne(name, script, script.getScopeLayout(), 0, knownOuters, fieldTypes.snapshot())
     }
     return root
 }

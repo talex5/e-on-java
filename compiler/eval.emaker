@@ -54,7 +54,7 @@ def asTypeDescriptor(member) {
 }
 
 def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
-    return def compile(mw, className :String, knownOuters :List) {
+    return def compile(mw, className :String, knownOuters :List, fieldTypes :List[String]) {
         def eval
         def evalRepresentation
 
@@ -199,7 +199,8 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 
         def evalObjectDef(objExpr) {
             return testMatch(objExpr.getOName(), fn {
-                def newObjClass := queueCompileInnerClass(objExpr)
+                def fieldTypes := [].diverge()
+                def newObjClass := queueCompileInnerClass(objExpr, fieldTypes)
 
                 def oName := objExpr.getOName()
 
@@ -208,23 +209,19 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
                 mw.loadThis()
                 mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
 
-                # Create a new array for the fields (non-outer variables in scope of the object and
+                # Push fields (non-outer variables in scope of the object and
                 # used inside the object).
                 def fields := objExpr.optFieldNouns()
-                mw.constant(fields.size())
-                mw.newArray("java/lang/Object")
-                # stack: object, context, array
-                var maxStack := 4
+                # stack: object, object, outers
                 for i => field in fields {
-                    mw.dup()
-                    mw.constant(i);
                     println(`field $i (${i.__getAllegedType()})`)
                     # stack: object, context, array, array, i
                     evalRepresentation(field)
-                    mw.storeToArray()
+                    fieldTypes.push(mw.topType(1))
                 }
 
-                mw.invokeInit(newObjClass, "([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V");
+                def fieldTypesStr := "".rjoin(fieldTypes.snapshot())
+                mw.invokeInit(newObjClass, `([Lorg/erights/e/elib/slot/Slot;$fieldTypesStr)V`)
             }, null)
         }
 
@@ -238,9 +235,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
                 match fNoun :FrameSlotNounExpr {
                     def i := fNoun.getIndex()
                     mw.loadThis()
-                    mw.loadOurField("fields", "[Ljava/lang/Object;")
-                    mw.constant(i)
-                    mw.loadFromArray()
+                    mw.loadOurField(`field$i`, fieldTypes[i])
                 }
                 match oNoun :OuterNounExpr {
                     def i := oNoun.getIndex()
@@ -575,9 +570,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
                 match x :FrameFinalNounExpr {
                     def i := x.getIndex()
                     mw.loadThis()
-                    mw.loadOurField("fields", "[Ljava/lang/Object;")
-                    mw.constant(i)
-                    mw.loadFromArray()
+                    mw.loadOurField(`field$i`, fieldTypes[i])
                 }
                 match x :LocalFinalNounExpr {
                     def i := x.getIndex()
@@ -595,9 +588,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
                 match x :FrameSlotNounExpr {
                     def i := x.getIndex()
                     mw.loadThis()
-                    mw.loadOurField("fields", "[Ljava/lang/Object;")
-                    mw.constant(i)
-                    mw.loadFromArray()
+                    mw.loadOurField(`field$i`, fieldTypes[i])
                     mw.invokeInterface("org/erights/e/elib/slot/Slot", "get",
                             "()Ljava/lang/Object;")
                 }
