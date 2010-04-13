@@ -347,8 +347,8 @@ public class ObjectExpr extends EExpr {
     /**
      *
      */
-    public ConstList getAuditorExprs() {
-        return ConstList.fromArray(myAuditorExprs);
+    public AuditorExprs getAuditorExprs() {
+        return myAuditorExprs;
     }
 
     /**
