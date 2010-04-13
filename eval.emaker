@@ -458,18 +458,30 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
 
 			mw.constant(call.verb())
 
-			mw.constant(arity)
-			mw.newArray("java/lang/Object")
-			# stack: recipient, verb, array
-			for i => arg in call.args() {
-				mw.dup()
-				mw.constant(i)
-				# stack: recipient, verb, array, array, i
-				eval(arg)
-				mw.storeToArray()
+			switch (arity) {
+				match ==1 {
+					for i => arg in call.args() {
+						eval(arg)
+					}
+					# stack: recipient, verb, arg...
+					mw.invokeStatic("org/erights/e/elib/prim/E", "call",
+						"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;")
+				}
+				match _ {
+					mw.constant(arity)
+					mw.newArray("java/lang/Object")
+					# stack: recipient, verb, array
+					for i => arg in call.args() {
+						mw.dup()
+						mw.constant(i)
+						# stack: recipient, verb, array, array, i
+						eval(arg)
+						mw.storeToArray()
+					}
+					mw.invokeStatic("org/erights/e/elib/prim/E", "callAll",
+						"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
+				}
 			}
-			mw.invokeStatic("org/erights/e/elib/prim/E", "callAll",
-				"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
 		}
 
 		# Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.
