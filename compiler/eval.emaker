@@ -26,626 +26,636 @@ def JavaClass := <type:java.lang.Class>
 def Void := <type:java.lang.Void>
 
 def max(a, b) {
-	if (a > b) {
-		return a
-	} else {
-		return b
-	}
+    if (a > b) {
+        return a
+    } else {
+        return b
+    }
 }
 
 def asTypeDescriptor(member) {
-	switch (member) {
-		match m :JavaMethod {
-			var sig := "("
-			for param in member.getParameterTypes() {
-				sig += asTypeDescriptor(param)
-			}
-			sig += ")" + asTypeDescriptor(m.getReturnType())
-			return sig
-		}
-		match c :JavaClass {
-			def name := c.getFQName().replaceAll(".", "/")
-			return switch (name) {
-				match `java/lang/Void` { "V" }
-				match _ { return `L$name;` }
-			}
-		}
-	}
+    switch (member) {
+        match m :JavaMethod {
+            var sig := "("
+            for param in member.getParameterTypes() {
+                sig += asTypeDescriptor(param)
+            }
+            sig += ")" + asTypeDescriptor(m.getReturnType())
+            return sig
+        }
+        match c :JavaClass {
+            def name := c.getFQName().replaceAll(".", "/")
+            return switch (name) {
+                match `java/lang/Void` { "V" }
+                match _ { return `L$name;` }
+            }
+        }
+    }
 }
 
 def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
-	return def compile(mw, className :String, knownOuters :List) {
-		def eval
-		def evalRepresentation
+    return def compile(mw, className :String, knownOuters :List) {
+        def eval
+        def evalRepresentation
 
-		def makeLabel := <asm:makeLabel>
-		def Opcodes := <asm:makeOpcodes>
-		def <op> {
-			to get(code) {
-				return E.call(Opcodes, `get$code`, [])
-			}
-		}
+        def makeLabel := <asm:makeLabel>
+        def Opcodes := <asm:makeOpcodes>
+        def <op> {
+            to get(code) {
+                return E.call(Opcodes, `get$code`, [])
+            }
+        }
 
-		def evalGuard(guard, valueMaker, ejector) {
-			if (guard == null) {
-				return valueMaker()
-			}
+        def evalGuard(guard, valueMaker, ejector) {
+            if (guard == null) {
+                return valueMaker()
+            }
 
-			#E.call(foo, "coerce", specimen, optEjector);
-			def guardStack := eval(guard)
-			mw.constant("coerce");
-			valueMaker()
+            #E.call(foo, "coerce", specimen, optEjector);
+            def guardStack := eval(guard)
+            mw.constant("coerce");
+            valueMaker()
 
-			if (ejector == null) {
-				mw.constantNull("Lorg/erights/e/elib/base/Ejector;")
-			} else {
-				eval(ejector)
-			}
+            if (ejector == null) {
+                mw.constantNull("Lorg/erights/e/elib/base/Ejector;")
+            } else {
+                eval(ejector)
+            }
 
-			mw.invokeStatic("org/erights/e/elib/prim/E", "call",
-				"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
-			#mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/slot/Guard", "coerce",
-			#"(Ljava/lang/Object;Lorg/erights;Lorg/erights/e/elib/util/OneArgFunc;)Ljava/lang/Object;")
-		}
+            mw.invokeStatic("org/erights/e/elib/prim/E", "call",
+                "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")
+            #mw.visitMethodInsn(<op:INVOKEVIRTUAL>, "org/erights/e/elib/slot/Guard", "coerce",
+            #"(Ljava/lang/Object;Lorg/erights;Lorg/erights/e/elib/util/OneArgFunc;)Ljava/lang/Object;")
+        }
 
-		# => slot, value
-		def evalMakeSlot(pattern, valueMaker) {
-			def guard := pattern.getOptGuardExpr()
+        # => slot, value
+        def evalMakeSlot(pattern, valueMaker) {
+            def guard := pattern.getOptGuardExpr()
 
-			evalGuard(guard, valueMaker, null)	# XXX
+            evalGuard(guard, valueMaker, null)    # XXX
 
-			if (pattern =~ sp :SlotPattern) {
-				# The value is the slot
-				mw.dup()
-			}
+            if (pattern =~ sp :SlotPattern) {
+                # The value is the slot
+                mw.dup()
+            }
 
-			# Package top-most value in a slot
-			def slotType := switch (pattern) {
-				match finalPattern :FinalPattern {
-					"org/erights/e/elib/slot/FinalSlot"
-				}
-				match varPattern :VarPattern {
-					if (guard == null) {
-						"org/erights/e/elib/slot/SimpleSlot"
-					} else {
-						"org/erights/e/elib/slot/SettableSlot"
-					}
-				}
-			}
+            # Package top-most value in a slot
+            def slotType := switch (pattern) {
+                match finalPattern :FinalPattern {
+                    "org/erights/e/elib/slot/FinalSlot"
+                }
+                match varPattern :VarPattern {
+                    if (guard == null) {
+                        "org/erights/e/elib/slot/SimpleSlot"
+                    } else {
+                        "org/erights/e/elib/slot/SettableSlot"
+                    }
+                }
+            }
 
-			mw.new(slotType)
-			# stack: value, slot
-			mw.swap()
-			mw.dup2()
-			# stack: slot, value, slot, value
+            mw.new(slotType)
+            # stack: value, slot
+            mw.swap()
+            mw.dup2()
+            # stack: slot, value, slot, value
 
-			mw.invokeInit(slotType, "(Ljava/lang/Object;)V")
+            mw.invokeInit(slotType, "(Ljava/lang/Object;)V")
 
-			# stack: slot, value
-		}
+            # stack: slot, value
+        }
 
-		def evalEInt(value :int) {
-			# XXX: values longer than Long?
-			switch (value) {
-				match ==0 { mw.loadStatic("java/math/BigInteger", "ZERO", "Ljava/math/BigInteger;") }
-				match ==1 { mw.loadStatic("java/math/BigInteger", "ONE", "Ljava/math/BigInteger;") }
-				match _ {
-					mw.constantLong(value)
-					mw.invokeStatic("java/math/BigInteger", "valueOf", "(J)Ljava/math/BigInteger;")
-				}
-			}
-		}
+        def evalEInt(value :int) {
+            # XXX: values longer than Long?
+            switch (value) {
+                match ==0 { mw.loadStatic("java/math/BigInteger", "ZERO", "Ljava/math/BigInteger;") }
+                match ==1 { mw.loadStatic("java/math/BigInteger", "ONE", "Ljava/math/BigInteger;") }
+                match _ {
+                    mw.constantLong(value)
+                    mw.invokeStatic("java/math/BigInteger", "valueOf", "(J)Ljava/math/BigInteger;")
+                }
+            }
+        }
 
-		def evalIf(ifExpr) {
-			eval(ifExpr.getTest())
-			mw.invokeStatic("org/erights/e/elib/prim/E", "asBoolean",
-				"(Ljava/lang/Object;)Z")
+        def evalIf(ifExpr) {
+            eval(ifExpr.getTest())
+            mw.invokeStatic("org/erights/e/elib/prim/E", "asBoolean",
+                "(Ljava/lang/Object;)Z")
 
-			mw.ifTrue(
-				fn { eval(ifExpr.getThen()) },
-				fn { eval(ifExpr.getElse()) }
-			)
-		}
+            mw.ifTrue(
+                fn { eval(ifExpr.getThen()) },
+                fn { eval(ifExpr.getElse()) }
+            )
+        }
 
-		# Bind valueMaker() to pattern, calling eval(ejector) on failure.
-		# If ejector is null, throw an exception on failure.
-		# => ...
-		# <= value
-		def testMatch(pattern, valueMaker, ejector) {
-			def guard := pattern.getOptGuardExpr()
+        # Bind valueMaker() to pattern, calling eval(ejector) on failure.
+        # If ejector is null, throw an exception on failure.
+        # => ...
+        # <= value
+        def testMatch(pattern, valueMaker, ejector) {
+            def guard := pattern.getOptGuardExpr()
 
-			if (pattern =~ _ :IgnorePattern) {
-				evalGuard(guard, valueMaker, ejector)
-				return
-			}
+            if (pattern =~ _ :IgnorePattern) {
+                evalGuard(guard, valueMaker, ejector)
+                return
+            }
 
-			def noun := pattern.getNoun()
-			println(`def $noun (${noun.__getAllegedType()})`)
-			switch (noun) {
-				match lsNoun :LocalSlotNounExpr {
-					def i := lsNoun.getIndex()
-					evalMakeSlot(pattern, valueMaker)
-					mw.dupX1()
-					mw.pop()
-					# stack: value, slot
-					mw.storeLocal(mw.eLocalToJaveLocal(i))
-				}
-				match lNoun :LocalFinalNounExpr {
-					pattern :FinalPattern
-					def i := lNoun.getIndex()
-					evalGuard(guard, valueMaker, ejector)
-					mw.dup()
-					mw.storeLocal(mw.eLocalToJaveLocal(i))
-				}
-				match oNoun :OuterNounExpr {
-					def i := oNoun.getIndex()
-					# this.outers[i] := new Slot(value)
-					mw.loadThis()
-					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
-					# stack: outers
-					evalMakeSlot(pattern, valueMaker)
-					# stack: outers, slot, value
-					mw.dupX2()
-					mw.pop()
-					# stack: value, outers, slot
-					mw.constant(i)
-					mw.swap()
-					# stack: value, outers, i, slot
-					mw.storeToArray()
-					# stack: value
-				}
-			}
-		}
+            def noun := pattern.getNoun()
+            println(`def $noun (${noun.__getAllegedType()})`)
+            switch (noun) {
+                match lsNoun :LocalSlotNounExpr {
+                    def i := lsNoun.getIndex()
+                    evalMakeSlot(pattern, valueMaker)
+                    mw.dupX1()
+                    mw.pop()
+                    # stack: value, slot
+                    mw.storeLocal(mw.eLocalToJaveLocal(i))
+                }
+                match lNoun :LocalFinalNounExpr {
+                    pattern :FinalPattern
+                    def i := lNoun.getIndex()
+                    evalGuard(guard, valueMaker, ejector)
+                    mw.dup()
+                    mw.storeLocal(mw.eLocalToJaveLocal(i))
+                }
+                match oNoun :OuterNounExpr {
+                    def i := oNoun.getIndex()
+                    # this.outers[i] := new Slot(value)
+                    mw.loadThis()
+                    mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+                    # stack: outers
+                    evalMakeSlot(pattern, valueMaker)
+                    # stack: outers, slot, value
+                    mw.dupX2()
+                    mw.pop()
+                    # stack: value, outers, slot
+                    mw.constant(i)
+                    mw.swap()
+                    # stack: value, outers, i, slot
+                    mw.storeToArray()
+                    # stack: value
+                }
+            }
+        }
 
-		def evalObjectDef(objExpr) {
-			return testMatch(objExpr.getOName(), fn {
-				def newObjClass := queueCompileInnerClass(objExpr)
+        def evalObjectDef(objExpr) {
+            return testMatch(objExpr.getOName(), fn {
+                def newObjClass := queueCompileInnerClass(objExpr)
 
-				def oName := objExpr.getOName()
+                def oName := objExpr.getOName()
 
-				mw.new(newObjClass)
-				mw.dup()
-				mw.loadThis()
-				mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+                mw.new(newObjClass)
+                mw.dup()
+                mw.loadThis()
+                mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
 
-				# Create a new array for the fields (non-outer variables in scope of the object and
-				# used inside the object).
-				def fields := objExpr.optFieldNouns()
-				mw.constant(fields.size())
-				mw.newArray("java/lang/Object")
-				# stack: object, context, array
-				var maxStack := 4
-				for i => field in fields {
-					mw.dup()
-					mw.constant(i);
-					println(`field $i (${i.__getAllegedType()})`)
-					# stack: object, context, array, array, i
-					evalRepresentation(field)
-					mw.storeToArray()
-				}
+                # Create a new array for the fields (non-outer variables in scope of the object and
+                # used inside the object).
+                def fields := objExpr.optFieldNouns()
+                mw.constant(fields.size())
+                mw.newArray("java/lang/Object")
+                # stack: object, context, array
+                var maxStack := 4
+                for i => field in fields {
+                    mw.dup()
+                    mw.constant(i);
+                    println(`field $i (${i.__getAllegedType()})`)
+                    # stack: object, context, array, array, i
+                    evalRepresentation(field)
+                    mw.storeToArray()
+                }
 
-				mw.invokeInit(newObjClass, "([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V");
-			}, null)
-		}
+                mw.invokeInit(newObjClass, "([Lorg/erights/e/elib/slot/Slot;[Ljava/lang/Object;)V");
+            }, null)
+        }
 
-		# => slot
-		def evalSlotExpr(noun) {
-			#traceln(`evalSlotExpr($slotExpr :${slotExpr.getNoun().__getAllegedType()})`)
-			return switch (noun) {
-				match lNoun :LocalSlotNounExpr {
-					mw.loadLocal(mw.eLocalToJaveLocal(lNoun.getIndex()))
-				}
-				match fNoun :FrameSlotNounExpr {
-					def i := fNoun.getIndex()
-					mw.loadThis()
-					mw.loadOurField("fields", "[Ljava/lang/Object;")
-					mw.constant(i)
-					mw.loadFromArray()
-				}
-				match oNoun :OuterNounExpr {
-					def i := oNoun.getIndex()
-					mw.loadThis()
-					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
-					mw.constant(i)
-					mw.loadFromArray()
-				}
-			}
-		}
+        # => slot
+        def evalSlotExpr(noun) {
+            #traceln(`evalSlotExpr($slotExpr :${slotExpr.getNoun().__getAllegedType()})`)
+            return switch (noun) {
+                match lNoun :LocalSlotNounExpr {
+                    mw.loadLocal(mw.eLocalToJaveLocal(lNoun.getIndex()))
+                }
+                match fNoun :FrameSlotNounExpr {
+                    def i := fNoun.getIndex()
+                    mw.loadThis()
+                    mw.loadOurField("fields", "[Ljava/lang/Object;")
+                    mw.constant(i)
+                    mw.loadFromArray()
+                }
+                match oNoun :OuterNounExpr {
+                    def i := oNoun.getIndex()
+                    mw.loadThis()
+                    mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+                    mw.constant(i)
+                    mw.loadFromArray()
+                }
+            }
+        }
 
-		# When copying into fields, sometimes we want the value, sometimes we want the slot.
-		bind evalRepresentation(noun) {
-			switch (noun) {
-				match x :FrameFinalNounExpr {
-					eval(x)
-				}
-				match x :LocalSlotNounExpr {
-					evalSlotExpr(x)
-				}
-				match x :LocalFinalNounExpr {
-					eval(x)
-				}
-			}
-		}
+        # When copying into fields, sometimes we want the value, sometimes we want the slot.
+        bind evalRepresentation(noun) {
+            switch (noun) {
+                match x :FrameFinalNounExpr {
+                    eval(x)
+                }
+                match x :LocalSlotNounExpr {
+                    evalSlotExpr(x)
+                }
+                match x :LocalFinalNounExpr {
+                    eval(x)
+                }
+            }
+        }
 
-		# Update an existing slot
-		def evalAssign(assign) {
-			def noun := assign.getNoun()
-			def value := assign.getRValue()
-			switch (noun) {
-				match lNoun :LocalSlotNounExpr {
-					evalSlotExpr(lNoun)
-					eval(value)
-					mw.dupX1()
-					mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
-							"(Ljava/lang/Object;)V")
-				}
-				match lNoun :LocalFinalNounExpr {
-					def i := lNoun.getIndex()
-					#def valueStack := evalGuard(guard, value)
-					eval(value)
-					mw.dup()
-					mw.storeLocal(<op:ASTORE>, mw.eLocalToJaveLocal(i))
-				}
-				match fNoun :FrameSlotNounExpr {
-					evalSlotExpr(fNoun)
-					eval(value)
-					mw.dupX1()
-					mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
-							"(Ljava/lang/Object;)V")
-				}
-				match oNoun :OuterNounExpr {
-					def i := oNoun.getIndex()
-					# push(this.context)
-					mw.loadThis()
-					mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
-					mw.constant(i)
-					# stack: array, i
-					mw.loadFromArray()
-					eval(value)
-					# stack: slot, value
-					mw.dupX1()
-					# stack: value, slot, value
-					mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
-							"(Ljava/lang/Object;)V")
-				}
-			}
-		}
+        # Update an existing slot
+        def evalAssign(assign) {
+            def noun := assign.getNoun()
+            def value := assign.getRValue()
+            switch (noun) {
+                match lNoun :LocalSlotNounExpr {
+                    evalSlotExpr(lNoun)
+                    eval(value)
+                    mw.dupX1()
+                    mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
+                            "(Ljava/lang/Object;)V")
+                }
+                match lNoun :LocalFinalNounExpr {
+                    def i := lNoun.getIndex()
+                    #def valueStack := evalGuard(guard, value)
+                    eval(value)
+                    mw.dup()
+                    mw.storeLocal(<op:ASTORE>, mw.eLocalToJaveLocal(i))
+                }
+                match fNoun :FrameSlotNounExpr {
+                    evalSlotExpr(fNoun)
+                    eval(value)
+                    mw.dupX1()
+                    mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
+                            "(Ljava/lang/Object;)V")
+                }
+                match oNoun :OuterNounExpr {
+                    def i := oNoun.getIndex()
+                    # push(this.context)
+                    mw.loadThis()
+                    mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+                    mw.constant(i)
+                    # stack: array, i
+                    mw.loadFromArray()
+                    eval(value)
+                    # stack: slot, value
+                    mw.dupX1()
+                    # stack: value, slot, value
+                    mw.invokeInterface("org/erights/e/elib/slot/Slot", "put",
+                            "(Ljava/lang/Object;)V")
+                }
+            }
+        }
 
-		def evalFinally(finallyExpr) {
-			# try {
-			# startAttempt:
-			#   attempt()
-			# endAttempt:
-			#   jsr finally
-			#   goto done
-			# } catch _ {
-			# catchBlock:
-			#   jsr finally
-			#   rethrow
-			# }
-			# finally:
-			#   unwinder()
-			#   ret
-			# done:
+        def evalFinally(finallyExpr) {
+            # try {
+            # startAttempt:
+            #   attempt()
+            # endAttempt:
+            #   jsr finally
+            #   goto done
+            # } catch _ {
+            # catchBlock:
+            #   jsr finally
+            #   rethrow
+            # }
+            # finally:
+            #   unwinder()
+            #   ret
+            # done:
 
-			mw.tryFinally(fn {
-				eval(finallyExpr.getAttempt())
-			}, fn {
-				eval(finallyExpr.getUnwinder())
-				mw.pop()
-			})
-		}
+            mw.tryFinally(fn {
+                eval(finallyExpr.getAttempt())
+            }, fn {
+                eval(finallyExpr.getUnwinder())
+                mw.pop()
+            })
+        }
 
-		def evalEscape(escapeExpr) {
-			# ejectorTmp = new Ejector()
-			# try {
-			# startAttempt:
-			#   def ejector := ejectorTmp
-			#   attempt()
-			# endAttempt:
-			#   ejectorTmp.disable()
-			#   goto done
-			# } catch ex {
-			# catchBlock:
-			#   ejectorTmp.disable()
-			#   result := ejectorTmp.result(ex)	# Rethrows if not ours
-			#   (bind to arg and run catch block, if any)
-			#   }
-			# }
-			# done:
+        def evalEscape(escapeExpr) {
+            # ejectorTmp = new Ejector()
+            # try {
+            # startAttempt:
+            #   def ejector := ejectorTmp
+            #   attempt()
+            # endAttempt:
+            #   ejectorTmp.disable()
+            #   goto done
+            # } catch ex {
+            # catchBlock:
+            #   ejectorTmp.disable()
+            #   result := ejectorTmp.result(ex)    # Rethrows if not ours
+            #   (bind to arg and run catch block, if any)
+            #   }
+            # }
+            # done:
 
-			var name := escapeExpr.getExitPatt().getOptName()
-			if (name == null) {
-				name := "escape-expr"
-			}
+            var name := escapeExpr.getExitPatt().getOptName()
+            if (name == null) {
+                name := "escape-expr"
+            }
 
-			# The JVM clears the stack when an exception is thrown, so copy it
-			# to local variables first.
-			mw.saveStack(fn {
-				mw.new("org/erights/e/elib/base/Ejector")
-				def ejectorVar := mw.allocLocal()
-				mw.dup()
-				mw.constant(name)
-				mw.invokeInit("org/erights/e/elib/base/Ejector", "(Ljava/lang/String;)V")
-				mw.storeLocal(ejectorVar)
+            # The JVM clears the stack when an exception is thrown, so copy it
+            # to local variables first.
+            mw.saveStack(fn {
+                mw.new("org/erights/e/elib/base/Ejector")
+                def ejectorVar := mw.allocLocal()
+                mw.dup()
+                mw.constant(name)
+                mw.invokeInit("org/erights/e/elib/base/Ejector", "(Ljava/lang/String;)V")
+                mw.storeLocal(ejectorVar)
 
-				mw.trySuccessFail(fn {
-					testMatch(escapeExpr.getExitPatt(), fn { mw.loadLocal(ejectorVar) }, null)
-					mw.pop()
-					eval(escapeExpr.getRValue())
-				}, fn {
-					# on success ...
-					# stack: result
-					mw.loadLocal(ejectorVar)
-					mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disable", "()V")
-				}, fn {
-					# on failure ...
-					# stack: exception
+                mw.trySuccessFail(fn {
+                    testMatch(escapeExpr.getExitPatt(), fn { mw.loadLocal(ejectorVar) }, null)
+                    mw.pop()
+                    eval(escapeExpr.getRValue())
+                }, fn {
+                    # on success ...
+                    # stack: result
+                    mw.loadLocal(ejectorVar)
+                    mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disable", "()V")
+                }, fn {
+                    # on failure ...
+                    # stack: exception
 
-					mw.loadLocal(ejectorVar)
-					mw.swap()
-					# stack: ejector, exception
-					# will re-throw if it's not ours
-					mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disableAndGetResult",
-							"(Ljava/lang/Throwable;)Ljava/lang/Object;")
-					# stack: result
+                    mw.loadLocal(ejectorVar)
+                    mw.swap()
+                    # stack: ejector, exception
+                    # will re-throw if it's not ours
+                    mw.invokeVirtual("org/erights/e/elib/base/Ejector", "disableAndGetResult",
+                            "(Ljava/lang/Throwable;)Ljava/lang/Object;")
+                    # stack: result
 
-					if (escapeExpr.getOptCatcher() =~ catcher :notNull) {
-						def tmp := ejectorVar	# reuse
-						# process result with catch block
-						mw.storeLocal(tmp)
-						testMatch(escapeExpr.getOptArgPattern(), fn { mw.loadLocal(tmp) }, null)
-						mw.pop()
-						eval(catcher)
-					}
-				})
+                    if (escapeExpr.getOptCatcher() =~ catcher :notNull) {
+                        def tmp := ejectorVar    # reuse
+                        # process result with catch block
+                        mw.storeLocal(tmp)
+                        testMatch(escapeExpr.getOptArgPattern(), fn { mw.loadLocal(tmp) }, null)
+                        mw.pop()
+                        eval(catcher)
+                    }
+                })
 
-				mw.releaseVar(ejectorVar)
-			})
+                mw.releaseVar(ejectorVar)
+            })
 
-			# stack: result
-		}
+            # stack: result
+        }
 
-		def boxResult(type) {
-			def `(@_)@rtype` := type
-			switch (rtype) {
-				match `L@_;` { } # Do nothing 
-				match `[@_;` { } # Do nothing 
-				match `V` { mw.constantNull("Ljava/lang/Object;") }
-			}
-		}
+        def boxResult(type) {
+            def `(@_)@rtype` := type
+            switch (rtype) {
+                match `L@_;` { } # Do nothing 
+                match `[@_;` { } # Do nothing 
+                match `V` { mw.constantNull("Ljava/lang/Object;") }
+            }
+        }
 
-		def evalArgsWithCasts(javaMethod :JavaMethod, args :List) {
-			def types := javaMethod.getParameterTypes()
-			for i => arg in args {
-				eval(arg)	# TODO: cast
-				def required := types[i].getFQName()
-				def have := mw.topType(1)
-				if (required != have) {
-					# TODO: already a subclass?
-					mw.cast(required.replaceAll(".", "/"))
-				}
-			}
-		}
+        def evalArgsWithCasts(javaMethod :JavaMethod, args :List) {
+            def types := javaMethod.getParameterTypes()
+            for i => arg in args {
+                eval(arg)    # TODO: cast
+                def required := types[i].getFQName()
+                def have := mw.topType(1)
+                if (required != have) {
+                    # TODO: already a subclass?
+                    mw.cast(required.replaceAll(".", "/"))
+                }
+            }
+        }
 
-		# recipient is already stacked
-		def evalCallInternal(call) {
-			def arity := call.args().size()
-			# See if we can determine the method statically
-			def recipientJavaTypeDecl := mw.topType(1)
+        # recipient is already stacked
+        def evalCallInternal(call) {
+            def arity := call.args().size()
+            # See if we can determine the method statically
+            def recipientJavaTypeDecl := mw.topType(1)
+            def verb := call.verb()
 
-			if (recipientJavaTypeDecl == "Lorg/erights/e/elang/interp/Loop;" && call.verb() == "run" && arity == 1) {
-				# __loop.run(loopBody)
-				# Expand this to:
-				# while (loopBody.run()) {}
-				mw.pop()	# wasteful
-				eval(call.args()[0])
-				mw.whileTrue(fn {
-					mw.dup()
-					evalCallInternal(def fakeCall {
-						to args() { return [] }
-						to verb() { return "run" }
-					})
-					mw.invokeStatic("org/erights/e/elib/prim/E", "asBoolean",
-						"(Ljava/lang/Object;)Z")
-				})
-				mw.pop()
-				mw.constantNull("Ljava/lang/Object;")
-				return
-			}
+            if (recipientJavaTypeDecl == "Lorg/erights/e/elang/interp/Loop;" && call.verb() == "run" && arity == 1) {
+                # __loop.run(loopBody)
+                # Expand this to:
+                # while (loopBody.run()) {}
+                mw.pop()    # wasteful
+                eval(call.args()[0])
+                mw.whileTrue(fn {
+                    mw.dup()
+                    evalCallInternal(def fakeCall {
+                        to args() { return [] }
+                        to verb() { return "run" }
+                    })
+                    mw.invokeStatic("org/erights/e/elib/prim/E", "asBoolean",
+                        "(Ljava/lang/Object;)Z")
+                })
+                mw.pop()
+                mw.constantNull("Ljava/lang/Object;")
+                return
+            }
 
-			def `L@javaType;` := recipientJavaTypeDecl
-			def script := scriptMaker.instanceScript(<type>[javaType.replaceAll("/", ".")])
-			def short := try {
-				script.shorten(null, call.verb(), arity)
-			} catch ex {
-				println(`failed to resolve $call ($ex); will do it the slow way`)
-				null
-			}
-			if (short != null && short.isJavaTypedParameterNode()) {
-				def member := short.member()
-				println(`using direct $member`)
-				evalArgsWithCasts(member, call.args())
-				def type := asTypeDescriptor(member)
-				mw.invokeVirtual(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
-						call.verb(),
-						type)
-				boxResult(type)
-				return
-			} else if (short =~ sugar :SugarMethodNode) {
-				def member := short.member()
-				println(`using sugar method $member`)
-				evalArgsWithCasts(member, call.args())
-				def type := asTypeDescriptor(member)
-				mw.invokeStatic(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
-						call.verb(),
-						type)
-				boxResult(type)
-				return
-			}
+            def `L@javaType;` := recipientJavaTypeDecl
+            if (javaType =~ `e/generated/inner@_`) {
+                # we probably haven't written the class yet, but we know what it will be
+                println(`using self-compiled method $javaType.$verb`)
+                def argTypes := "Ljava/jang/Object;" * arity
+                def type := `($argTypes)Ljava/lang/Object;`
+                mw.invokeVirtual(javaType, verb, type)
+                return
+            }
 
-			mw.constant(call.verb())
+            def script := scriptMaker.instanceScript(<type>[javaType.replaceAll("/", ".")])
+            def short := try {
+                script.shorten(null, call.verb(), arity)
+            } catch ex {
+                println(`failed to resolve $call ($ex); will do it the slow way`)
+                null
+            }
+            if (short != null && short.isJavaTypedParameterNode()) {
+                def member := short.member()
+                println(`using direct $member`)
+                evalArgsWithCasts(member, call.args())
+                def type := asTypeDescriptor(member)
+                mw.invokeVirtual(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
+                        call.verb(),
+                        type)
+                boxResult(type)
+                return
+            } else if (short =~ sugar :SugarMethodNode) {
+                def member := short.member()
+                println(`using sugar method $member`)
+                evalArgsWithCasts(member, call.args())
+                def type := asTypeDescriptor(member)
+                mw.invokeStatic(member.getDeclaringClass().getFQName().replaceAll(".", "/"),
+                        call.verb(),
+                        type)
+                boxResult(type)
+                return
+            }
 
-			switch (arity) {
-				match ==1 {
-					for i => arg in call.args() {
-						eval(arg)
-					}
-					# stack: recipient, verb, arg...
-					mw.invokeStatic("org/erights/e/elib/prim/E", "call",
-						"(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;")
-				}
-				match _ {
-					mw.constant(arity)
-					mw.newArray("java/lang/Object")
-					# stack: recipient, verb, array
-					for i => arg in call.args() {
-						mw.dup()
-						mw.constant(i)
-						# stack: recipient, verb, array, array, i
-						eval(arg)
-						mw.storeToArray()
-					}
-					mw.invokeStatic("org/erights/e/elib/prim/E", "callAll",
-						"(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
-				}
-			}
-		}
+            mw.constant(call.verb())
 
-		def evalCall(call) {
-			def recipient := call.recipient()
-			eval(recipient)
-			evalCallInternal(call)
-		}
+            switch (arity) {
+                match ==1 {
+                    for i => arg in call.args() {
+                        eval(arg)
+                    }
+                    # stack: recipient, verb, arg...
+                    mw.invokeStatic("org/erights/e/elib/prim/E", "call",
+                        "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;")
+                }
+                match _ {
+                    mw.constant(arity)
+                    mw.newArray("java/lang/Object")
+                    # stack: recipient, verb, array
+                    for i => arg in call.args() {
+                        mw.dup()
+                        mw.constant(i)
+                        # stack: recipient, verb, array, array, i
+                        eval(arg)
+                        mw.storeToArray()
+                    }
+                    mw.invokeStatic("org/erights/e/elib/prim/E", "callAll",
+                        "(Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;")
+                }
+            }
+        }
 
-		# Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.
-		bind eval(item) {
-			#println(`eval: $item : ${item.__getAllegedType()}`)
-			println(`eval: ${item.__getAllegedType()}`)
-			switch (item) {
-				match x :SlotExpr {
-					evalSlotExpr(x.getNoun())
-				}
-				match x :OuterNounExpr {
-					def i := x.getIndex()
-					def currentValue := knownOuters[i]
-					def unknown {}
-					def knownValue := if (currentValue != null && currentValue =~ finalSlot :FinalSlot) {
-						finalSlot.get()
-					} else {
-						unknown
-					}
-					switch (knownValue) {
-						match ==true {
-							mw.loadStatic("java/lang/Boolean", "TRUE", "Ljava/lang/Boolean;")
-						}
-						match ==false {
-							mw.loadStatic("java/lang/Boolean", "FALSE", "Ljava/lang/Boolean;")
-						}
-						match ==null {
-							mw.constantNull("Ljava/lang/Object;")
-						}
-						match _ {
-							mw.loadThis()
-							mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
-							mw.constant(i)
-							mw.loadFromArray()
-							mw.invokeInterface("org/erights/e/elib/slot/Slot", "get", "()Ljava/lang/Object;")
-							if (knownValue != unknown) {
-								def javaType := knownValue.__getAllegedType().getFQName()
-								if (javaType =~ `@{_}__Maker`) {
-								} else {
-									def jvmType := javaType.replaceAll(".", "/")
-									mw.cast(jvmType)
-								}
-							}
-						}
-					}
-				}
-				match x :FrameFinalNounExpr {
-					def i := x.getIndex()
-					mw.loadThis()
-					mw.loadOurField("fields", "[Ljava/lang/Object;")
-					mw.constant(i)
-					mw.loadFromArray()
-				}
-				match x :LocalFinalNounExpr {
-					def i := x.getIndex()
-					mw.loadLocal(mw.eLocalToJaveLocal(i))
-				}
-				match x :LocalSlotNounExpr {
-					def i := x.getIndex()
-					mw.loadLocal(mw.eLocalToJaveLocal(i))
-					mw.invokeInterface("org/erights/e/elib/slot/Slot", "get",
-							"()Ljava/lang/Object;")
-				}
-				match x :FinallyExpr {
-					return evalFinally(x)
-				}
-				match x :FrameSlotNounExpr {
-					def i := x.getIndex()
-					mw.loadThis()
-					mw.loadOurField("fields", "[Ljava/lang/Object;")
-					mw.constant(i)
-					mw.loadFromArray()
-					mw.invokeInterface("org/erights/e/elib/slot/Slot", "get",
-							"()Ljava/lang/Object;")
-				}
-				match x :LiteralExpr {
-					switch (x.value()) {
-						match i :int {
-							return evalEInt(i)
-						}
-						match s :String {
-							mw.constant(s)
-							return 1
-						}
-					}
-				}
-				match x :ObjectExpr {
-					return evalObjectDef(x)
-				}
-				match x :EMethod {
-					for i => arg in x.getPatterns() {
-						testMatch(arg, fn { mw.loadLocal(i + 1) }, null)
-					}
-					return eval(x.getBody())
-				}
-				match x :IfExpr {
-					return evalIf(x)
-				}
-				match x :AssignExpr {
-					evalAssign(x)
-				}
-				match x :SeqExpr {
-					var maxStack := 0
-					def last := x.subs().size() - 1
-					for i => expr in x.subs() {
-						eval(expr)
-						if (i != last) {
-							mw.pop()
-						}
-					}
-					return maxStack
-				}
-				match x :EscapeExpr {
-					return evalEscape(x)
-				}
-				match d :DefineExpr {
-					def pattern := d.getPattern()
-					def value := d.getRValue()
-					return testMatch(pattern, fn {eval(value)}, d.getOptEjectorExpr())
-				}
-				match call :CallExpr {
-					evalCall(call)
-				}
-			}
-		}
+        def evalCall(call) {
+            def recipient := call.recipient()
+            eval(recipient)
+            evalCallInternal(call)
+        }
 
-		return def compiler {
-			to run(code) {
-				return eval(code)
-			}
-		}
-	}
+        # Stack must be empty, because some constructs throw and catch exceptions and that clears the stack.
+        bind eval(item) {
+            #println(`eval: $item : ${item.__getAllegedType()}`)
+            println(`eval: ${item.__getAllegedType()}`)
+            switch (item) {
+                match x :SlotExpr {
+                    evalSlotExpr(x.getNoun())
+                }
+                match x :OuterNounExpr {
+                    def i := x.getIndex()
+                    def currentValue := knownOuters[i]
+                    def unknown {}
+                    def knownValue := if (currentValue != null && currentValue =~ finalSlot :FinalSlot) {
+                        finalSlot.get()
+                    } else {
+                        unknown
+                    }
+                    switch (knownValue) {
+                        match ==true {
+                            mw.loadStatic("java/lang/Boolean", "TRUE", "Ljava/lang/Boolean;")
+                        }
+                        match ==false {
+                            mw.loadStatic("java/lang/Boolean", "FALSE", "Ljava/lang/Boolean;")
+                        }
+                        match ==null {
+                            mw.constantNull("Ljava/lang/Object;")
+                        }
+                        match _ {
+                            mw.loadThis()
+                            mw.loadOurField("outers", "[Lorg/erights/e/elib/slot/Slot;")
+                            mw.constant(i)
+                            mw.loadFromArray()
+                            mw.invokeInterface("org/erights/e/elib/slot/Slot", "get", "()Ljava/lang/Object;")
+                            if (knownValue != unknown) {
+                                def javaType := knownValue.__getAllegedType().getFQName()
+                                if (javaType =~ `@{_}__Maker`) {
+                                } else {
+                                    def jvmType := javaType.replaceAll(".", "/")
+                                    mw.cast(jvmType)
+                                }
+                            }
+                        }
+                    }
+                }
+                match x :FrameFinalNounExpr {
+                    def i := x.getIndex()
+                    mw.loadThis()
+                    mw.loadOurField("fields", "[Ljava/lang/Object;")
+                    mw.constant(i)
+                    mw.loadFromArray()
+                }
+                match x :LocalFinalNounExpr {
+                    def i := x.getIndex()
+                    mw.loadLocal(mw.eLocalToJaveLocal(i))
+                }
+                match x :LocalSlotNounExpr {
+                    def i := x.getIndex()
+                    mw.loadLocal(mw.eLocalToJaveLocal(i))
+                    mw.invokeInterface("org/erights/e/elib/slot/Slot", "get",
+                            "()Ljava/lang/Object;")
+                }
+                match x :FinallyExpr {
+                    return evalFinally(x)
+                }
+                match x :FrameSlotNounExpr {
+                    def i := x.getIndex()
+                    mw.loadThis()
+                    mw.loadOurField("fields", "[Ljava/lang/Object;")
+                    mw.constant(i)
+                    mw.loadFromArray()
+                    mw.invokeInterface("org/erights/e/elib/slot/Slot", "get",
+                            "()Ljava/lang/Object;")
+                }
+                match x :LiteralExpr {
+                    switch (x.value()) {
+                        match i :int {
+                            return evalEInt(i)
+                        }
+                        match s :String {
+                            mw.constant(s)
+                            return 1
+                        }
+                    }
+                }
+                match x :ObjectExpr {
+                    return evalObjectDef(x)
+                }
+                match x :EMethod {
+                    for i => arg in x.getPatterns() {
+                        testMatch(arg, fn { mw.loadLocal(i + 1) }, null)
+                    }
+                    return eval(x.getBody())
+                }
+                match x :IfExpr {
+                    return evalIf(x)
+                }
+                match x :AssignExpr {
+                    evalAssign(x)
+                }
+                match x :SeqExpr {
+                    var maxStack := 0
+                    def last := x.subs().size() - 1
+                    for i => expr in x.subs() {
+                        eval(expr)
+                        if (i != last) {
+                            mw.pop()
+                        }
+                    }
+                    return maxStack
+                }
+                match x :EscapeExpr {
+                    return evalEscape(x)
+                }
+                match d :DefineExpr {
+                    def pattern := d.getPattern()
+                    def value := d.getRValue()
+                    return testMatch(pattern, fn {eval(value)}, d.getOptEjectorExpr())
+                }
+                match call :CallExpr {
+                    evalCall(call)
+                }
+            }
+        }
+
+        return def compiler {
+            to run(code) {
+                return eval(code)
+            }
+        }
+    }
 }
