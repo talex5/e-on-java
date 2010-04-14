@@ -379,7 +379,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             // That means this call will always fail at runtime. But this code may be unreachable. Should
             // we throw an error or carry on?
             if (value == null) {
-                warn(optOriginal, "Calling " + verb + " on null");
+                warn(optOriginal, "calling " + verb + " on null");
             } else {
                 // Certain safe objects can be invoked at compile time...
                 if (value == TypeLoader.THE_ONE && verb.equals("get")) {
@@ -417,5 +417,37 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         }
 
         return newCall;
+    }
+
+    public Object visitSeqExpr(ENode optOriginal, EExpr[] subs) {
+        EExpr[] xSubs = xformEExprs(subs);
+        int i = 0;
+        int j = 0;
+        for (; i < xSubs.length - 1; i++) {
+            Slot optKnownSlot = myCompilerFlags.basicOptimisations ? xSubs[i].getOptKnownSlot() : null;
+            if (optKnownSlot != null && optKnownSlot instanceof FinalSlot) {
+                if (optKnownSlot.get() != null) {
+                    warn(subs[i], "constant expression with no effect: " + subs[i]);
+                }
+            } else {
+                xSubs[j] = xSubs[i];
+                j += 1;
+            }
+        }
+        if (j == 0) {
+            return xSubs[i];
+        }
+        if (i == j) {
+            return new SeqExpr(getOptSpan(optOriginal),
+                               xSubs,
+                               getOptScopeLayout());
+        } else {
+            EExpr[] newSubs = new EExpr[j + 1];
+            System.arraycopy(xSubs, 0, newSubs, 0, j);
+            newSubs[j] = xSubs[i];
+            return new SeqExpr(getOptSpan(optOriginal),
+                               newSubs,
+                               getOptScopeLayout());
+        }
     }
 }
