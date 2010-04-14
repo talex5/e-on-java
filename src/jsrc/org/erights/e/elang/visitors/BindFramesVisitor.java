@@ -335,9 +335,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             Slot slot = ((OuterNounExpr) noun).getSlot(evalContext);
             if (slot != null && slot instanceof FinalSlot) {
                 //System.out.println("FinalSlot expr: " + noun + " -> " + slot.get());
-                return new LiteralExpr(getOptSpan(optOriginal),
-                                       slot.get(),
-                                       getOptScopeLayout());
+                return new LiteralExpr((OuterNounExpr) noun, slot.get());
             } else {
                 //System.out.println("Can't expand " + noun);
             }
@@ -364,6 +362,14 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                                 String verb,
                                 EExpr[] args) {
         EExpr xRecip = xformEExpr(recip);
+        EExpr[] xArgs = xformEExprs(args);
+
+        CallExpr newCall = new CallExpr(getOptSpan(optOriginal),
+                            xRecip,
+                            verb,
+                            xArgs,
+                            getOptScopeLayout());
+
         if (xRecip instanceof LiteralExpr) {
             Object value = ((LiteralExpr) xRecip).getValue();
             // XXX: what should we do if we can't find the method?
@@ -374,11 +380,10 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             } else {
                 // Certain safe objects can be invoked at compile time...
                 if (value == TypeLoader.THE_ONE) {
-                    Object[] argValues = literalArgs(args);
+                    Object[] argValues = literalArgs(xArgs);
                     if (argValues != null) {
-                        return new LiteralExpr(getOptSpan(optOriginal),
-                                       E.callAll(value, verb, argValues),
-                                       getOptScopeLayout());
+                        return new LiteralExpr(newCall,
+                                       E.callAll(value, verb, argValues));
                     }
                 }
 
@@ -388,7 +393,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                 return new FastCallExpr(getOptSpan(optOriginal),
                                     xRecip,
                                     verb,
-                                    xformEExprs(args),
+                                    xArgs,
                                     value,
                                     script,
                                     getOptScopeLayout());
@@ -401,12 +406,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                 */
             }
         }
-
-        return new CallExpr(getOptSpan(optOriginal),
-                            xRecip,
-                            verb,
-                            xformEExprs(args),
-                            getOptScopeLayout());
+        
+        return newCall;
     }
 
     public Object visitSeqExpr(ENode optOriginal, EExpr[] subs) {
