@@ -33,8 +33,10 @@ import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elang.scope.EvalContext;
 import org.erights.e.elib.prim.ScriptMaker;
 import org.erights.e.elib.prim.JavaMemberNode;
+import org.erights.e.elib.prim.E;
 import org.erights.e.elib.base.Script;
 import java.lang.reflect.Member;
+import org.erights.e.elang.interp.TypeLoader;
 
 /**
  * @author E. Dean Tribble
@@ -343,6 +345,18 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         return noun;
     }
 
+    private Object[] literalArgs(EExpr[] args) {
+        Object[] argValues = new Object[args.length];
+        for (int i = 0; i < args.length; i++) {
+            if (args[i] instanceof LiteralExpr) {
+                argValues[i] = ((LiteralExpr) args[i]).getValue();
+            } else {
+                return null;
+            }
+        }
+        return argValues;
+    }
+
     /** If we know the type of the recipient at compile-time, look up the method now.
      */
     public Object visitCallExpr(ENode optOriginal,
@@ -358,6 +372,17 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             if (value == null) {
                 throw new RuntimeException("Calling " + verb + " on null: " + getOptSpan(optOriginal));
             } else {
+                // Certain safe objects can be invoked at compile time...
+                if (value == TypeLoader.THE_ONE) {
+                    Object[] argValues = literalArgs(args);
+                    if (argValues != null) {
+                        return new LiteralExpr(getOptSpan(optOriginal),
+                                       E.callAll(value, verb, argValues),
+                                       getOptScopeLayout());
+                    }
+                }
+
+                // Otherwise, at least shorten the script...
                 Script script = ScriptMaker.THE_ONE.instanceScript(value.getClass());
                 script = script.shorten(value, verb, args.length);
                 return new FastCallExpr(getOptSpan(optOriginal),
