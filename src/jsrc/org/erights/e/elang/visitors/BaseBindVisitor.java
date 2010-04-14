@@ -13,6 +13,7 @@ import org.erights.e.elang.evm.NounPattern;
 import org.erights.e.elang.evm.ParseNode;
 import org.erights.e.elang.evm.SlotPattern;
 import org.erights.e.elang.evm.VarPattern;
+import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
 import org.erights.e.elib.base.SourceSpan;
 
@@ -22,13 +23,13 @@ import org.erights.e.elib.base.SourceSpan;
  */
 public abstract class BaseBindVisitor extends KernelECopyVisitor {
 
-    ScopeLayout myLayout;
+    Scope myScope;
 
     /**
      * @param layout
      */
-    BaseBindVisitor(ScopeLayout layout) {
-        myLayout = layout;
+    BaseBindVisitor(Scope scope) {
+        myScope = scope;
     }
 
     /**
@@ -36,7 +37,7 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
      * construct.
      */
     public ScopeLayout getOptScopeLayout() {
-        return myLayout;
+        return myScope.getScopeLayout();
     }
 
     /**
@@ -55,7 +56,7 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
      *
      */
     public Object visitNounExpr(ENode optOriginal, String varName) {
-        NounExpr optNoun = myLayout.getOptNoun(varName);
+        NounExpr optNoun = getOptScopeLayout().getOptNoun(varName);
         if (null == optNoun) {
             ParseNode.fail("Undefined variable: " + varName, optOriginal);
         }
@@ -69,11 +70,17 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
                                   AtomicExpr noun,
                                   EExpr rValue) {
         String varName = noun.asNoun().getName();
-        NounPattern optNPatt = myLayout.getOptPattern(varName);
+        NounPattern optNPatt = getOptScopeLayout().getOptPattern(varName);
         if (optNPatt != null && optNPatt instanceof FinalPattern) {
             ParseNode.fail("Can't assign to final variable: " + varName, noun);
         }
         return super.visitAssignExpr(optOriginal, noun, rValue);
+    }
+
+    private void updateScope(String varName, NounPattern result) {
+        ScopeLayout layout = myScope.getScopeLayout();
+        layout = layout.with(varName, result);
+        myScope = myScope.update(layout);
     }
 
     /***************************** Patterns *************************/
@@ -85,13 +92,13 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
                                     AtomicExpr nounExpr,
                                     EExpr optGuardExpr) {
         String varName = nounExpr.asNoun().getName();
-        myLayout.requireShadowable(varName, nounExpr);
+        getOptScopeLayout().requireShadowable(varName, nounExpr);
         NounExpr newNounExpr = newFinal(nounExpr.getOptSpan(), varName);
         NounPattern result = new FinalPattern(getOptSpan(optOriginal),
                                               newNounExpr,
                                               xformEExpr(optGuardExpr),
                                               getOptScopeLayout());
-        myLayout = myLayout.with(varName, result);
+        updateScope(varName, result);
         return result;
     }
 
@@ -102,13 +109,13 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
                                   AtomicExpr nounExpr,
                                   EExpr optGuardExpr) {
         String varName = nounExpr.asNoun().getName();
-        myLayout.requireShadowable(varName, nounExpr);
+        getOptScopeLayout().requireShadowable(varName, nounExpr);
         NounExpr newNounExpr = newVar(nounExpr.getOptSpan(), varName);
         NounPattern result = new VarPattern(getOptSpan(optOriginal),
                                             newNounExpr,
                                             xformEExpr(optGuardExpr),
                                             getOptScopeLayout());
-        myLayout = myLayout.with(varName, result);
+        updateScope(varName, result);
         return result;
     }
 
@@ -119,13 +126,13 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
                                    AtomicExpr nounExpr,
                                    EExpr optGuardExpr) {
         String varName = nounExpr.asNoun().getName();
-        myLayout.requireShadowable(varName, nounExpr);
+        getOptScopeLayout().requireShadowable(varName, nounExpr);
         NounExpr newNounExpr = newVar(nounExpr.getOptSpan(), varName);
         NounPattern result = new SlotPattern(getOptSpan(optOriginal),
                                              newNounExpr,
                                              xformEExpr(optGuardExpr),
                                              getOptScopeLayout());
-        myLayout = myLayout.with(varName, result);
+        updateScope(varName, result);
         return result;
     }
 
@@ -135,12 +142,12 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
     public Object visitBindingPattern(ENode optOriginal,
                                       AtomicExpr nounExpr) {
         String varName = nounExpr.asNoun().getName();
-        myLayout.requireShadowable(varName, nounExpr);
+        getOptScopeLayout().requireShadowable(varName, nounExpr);
         NounExpr newNounExpr = newVar(nounExpr.getOptSpan(), varName);
         NounPattern result = new BindingPattern(getOptSpan(optOriginal),
                                                 newNounExpr,
                                                 getOptScopeLayout());
-        myLayout = myLayout.with(varName, result);
+        updateScope(varName, result);
         return result;
     }
 }

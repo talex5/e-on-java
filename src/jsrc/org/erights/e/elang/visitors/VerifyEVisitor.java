@@ -33,13 +33,13 @@ import org.erights.e.elib.tables.FlexMap;
 public class VerifyEVisitor extends BaseBindVisitor {
 
     static public VerifyEVisitor fromScope(Scope scope) {
-      return new VerifyEVisitor(scope.getScopeLayout());
+      return new VerifyEVisitor(scope);
     }
 
     /**
      *
      */
-    public VerifyEVisitor(ScopeLayout bindings) {
+    public VerifyEVisitor(Scope bindings) {
         super(bindings);
     }
 
@@ -47,14 +47,15 @@ public class VerifyEVisitor extends BaseBindVisitor {
      *
      */
     KernelECopyVisitor nest(GuardedPattern oName) {
-        return new VerifyEVisitor(myLayout.nest(oName.getOptName()));
+        ScopeLayout scopeLayout = myScope.getScopeLayout().nest(oName.getOptName());
+        return new VerifyEVisitor(myScope.update(scopeLayout));
     }
 
     /**
      *
      */
     KernelECopyVisitor nest() {
-        return new VerifyEVisitor(myLayout.nest());
+        return new VerifyEVisitor(myScope.nest());
     }
 
     /**
@@ -62,8 +63,8 @@ public class VerifyEVisitor extends BaseBindVisitor {
      */
     private VerifyEVisitor nestObject(ConstMap newSynEnv) {
         ScopeLayout inner =
-          ScopeLayout.make(-1, newSynEnv, myLayout.getFQNPrefix());
-        return new VerifyEVisitor(inner.nest());
+          ScopeLayout.make(-1, newSynEnv, myScope.getFQNPrefix()).nest();
+        return new VerifyEVisitor(myScope.update(inner));
     }
 
     /**
@@ -101,7 +102,7 @@ public class VerifyEVisitor extends BaseBindVisitor {
           FlexMap.fromTypes(String.class, NounPattern.class, used.length);
         for (int i = 0, max = used.length; i < max; i++) {
             String varName = used[i];
-            NounPattern optNamer = t.myLayout.getOptPattern(varName);
+            NounPattern optNamer = t.myScope.getScopeLayout().getOptPattern(varName);
             if (null == optNamer) {
                 ParseNode.fail("Undefined variable: " + varName,
                                (ENode)usedMap.get(varName));
