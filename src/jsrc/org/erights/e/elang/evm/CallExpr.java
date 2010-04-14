@@ -59,12 +59,12 @@ public class CallExpr extends EExpr implements EStackItem {
     /**
      *
      */
-    private final String myVerb;
+    protected final String myVerb;
 
     /**
      *
      */
-    private final EExpr[] myArgs;
+    protected final EExpr[] myArgs;
 
     /**
      *
