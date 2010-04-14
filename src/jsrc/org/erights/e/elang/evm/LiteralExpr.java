@@ -117,9 +117,11 @@ public class LiteralExpr extends EExpr {
             myValue = ((String)value).intern();
         } else {
             myValue = value;
+            /* disabled while testing compiler
             T.require(Ref.isDeepPassByCopy(value),
                       "Must be DeepPassByCopy: ",
                       value);
+                      */
         }
     }
 

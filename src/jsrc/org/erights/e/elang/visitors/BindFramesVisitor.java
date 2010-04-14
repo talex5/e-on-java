@@ -18,6 +18,7 @@ import org.erights.e.elang.evm.NounPattern;
 import org.erights.e.elang.evm.ObjectExpr;
 import org.erights.e.elang.evm.Pattern;
 import org.erights.e.elang.evm.SeqExpr;
+import org.erights.e.elang.evm.LiteralExpr;
 import org.erights.e.elang.evm.StaticScope;
 import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
@@ -25,6 +26,10 @@ import org.erights.e.elang.scope.StaticContext;
 import org.erights.e.elib.tables.ConstMap;
 import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.tables.FlexMap;
+import org.erights.e.elang.evm.OuterNounExpr;
+import org.erights.e.elib.slot.Slot;
+import org.erights.e.elib.slot.FinalSlot;
+import org.erights.e.elang.scope.EvalContext;
 
 /**
  * @author E. Dean Tribble
@@ -314,5 +319,22 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             }
         }
         return super.visitIfExpr(optOriginal, test, then, els);
+    }
+
+    public Object visitNounExpr(ENode optOriginal, String varName) {
+        Object noun = super.visitNounExpr(optOriginal, varName);
+        if (noun instanceof OuterNounExpr) {
+            EvalContext evalContext = myScope.newContext(0);
+            Slot slot = ((OuterNounExpr) noun).getSlot(evalContext);
+            if (slot != null && slot instanceof FinalSlot) {
+                //System.out.println("FinalSlot expr: " + noun + " -> " + slot.get());
+                return new LiteralExpr(getOptSpan(optOriginal),
+                                       slot.get(),
+                                       getOptScopeLayout());
+            } else {
+                //System.out.println("Can't expand " + noun);
+            }
+        }
+        return noun;
     }
 }
