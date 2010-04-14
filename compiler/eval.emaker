@@ -66,13 +66,14 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
             }
         }
 
+        # => value
         def evalGuard(guard, valueMaker, ejector) {
             if (guard == null) {
                 return valueMaker()
             }
 
             #E.call(foo, "coerce", specimen, optEjector);
-            def guardStack := eval(guard)
+            eval(guard)
             mw.constant("coerce");
             valueMaker()
 
@@ -92,36 +93,57 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
         def evalMakeSlot(pattern, valueMaker) {
             def guard := pattern.getOptGuardExpr()
 
-            evalGuard(guard, valueMaker, null)    # XXX
-
-            if (pattern =~ sp :SlotPattern) {
-                # The value is the slot
-                mw.dup()
-            }
-
-            # Package top-most value in a slot
-            def slotType := switch (pattern) {
+            switch (pattern) {
+                match slotPattern :SlotPattern {
+                    valueMaker()
+                    # The value is the slot
+                    mw.dup()
+                    # stack: slot, slot(=value)
+                }
                 match finalPattern :FinalPattern {
-                    "org/erights/e/elib/slot/FinalSlot"
+                    mw.new("org/erights/e/elib/slot/FinalSlot")
+                    evalGuard(guard, valueMaker, null)
+                    # stack: slot, value
+                    mw.dup2()
+                    # stack: slot, value, slot, value
+                    mw.invokeInit("(Ljava/lang/Object;)V")
+                    # stack: slot, value
                 }
                 match varPattern :VarPattern {
                     if (guard == null) {
-                        "org/erights/e/elib/slot/SimpleSlot"
+                        mw.new("org/erights/e/elib/slot/SimpleSlot")
+                        valueMaker()
+                        # stack: slot, value
+                        mw.dup2()
+                        # stack: slot, value, slot, value
+                        mw.invokeInit("(Ljava/lang/Object;)V")
+                        # stack: slot, value
                     } else {
-                        "org/erights/e/elib/slot/SettableSlot"
+                        # note: we store the coerced value but leave the original on the stack
+                        mw.new("org/erights/e/elib/slot/SettableSlot")
+                        mw.dup()
+
+                        # coerce to Guard
+                        eval(guard)
+
+                        # TODO: check if it's already a Guard?
+                        mw.constant("org.erights.e.elib.slot.Guard")
+                        mw.invokeStatic("java/lang/Class", "forName", "(Ljava/lang/String;)Ljava/lang/Class;")
+                        # stack: slot, slot, guard, Guard.class
+                        mw.invokeStatic("org/erights/e/elib/prim/E", "as", "(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;")
+                        mw.cast("org/erights/e/elib/slot/Guard")
+                        # stack: slot, slot, Guard
+
+                        valueMaker()
+                        # stack: slot, slot, Guard, value
+                        mw.dupX2()
+                        # stack: slot, value, slot, guard, value
+                        mw.constantNull("Lorg/erights/e/elib/base/Ejector;")    # XXX: use provided ejector?
+                        mw.invokeInit("(Lorg/erights/e/elib/slot/Guard;Ljava/lang/Object;Lorg/erights/e/elib/util/OneArgFunc;)V")
+                        # stack: slot, value
                     }
                 }
             }
-
-            mw.new(slotType)
-            # stack: value, slot
-            mw.swap()
-            mw.dup2()
-            # stack: slot, value, slot, value
-
-            mw.invokeInit(slotType, "(Ljava/lang/Object;)V")
-
-            # stack: slot, value
         }
 
         def evalEInt(value :int) {
@@ -221,7 +243,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
                 }
 
                 def fieldTypesStr := "".rjoin(fieldTypes.snapshot())
-                mw.invokeInit(newObjClass, `([Lorg/erights/e/elib/slot/Slot;$fieldTypesStr)V`)
+                mw.invokeInit(`([Lorg/erights/e/elib/slot/Slot;$fieldTypesStr)V`)
             }, null)
         }
 
@@ -361,7 +383,7 @@ def makeMethodCompiler(<asm>, queueCompileInnerClass, scriptMaker, println) {
                 def ejectorVar := mw.allocLocal()
                 mw.dup()
                 mw.constant(name)
-                mw.invokeInit("org/erights/e/elib/base/Ejector", "(Ljava/lang/String;)V")
+                mw.invokeInit("(Ljava/lang/String;)V")
                 mw.storeLocal(ejectorVar)
 
                 mw.trySuccessFail(fn {

@@ -105,7 +105,7 @@ def writerAuthor(<asm>, println) {
         }
 
         def unstack(n :int) {
-            require(stackType.size() >= n)
+            require(stackType.size() >= n, `can't unstack $n from $stackType`)
             stackType := stackType(0, stackType.size() - n)
             #println(`stack: $stackType`)
         }
@@ -168,8 +168,10 @@ def writerAuthor(<asm>, println) {
                 stackFn(type)
             }
 
-            to invokeInit(targetClassName :String, type :String) {
-                mw.visitMethodInsn(<op:INVOKESPECIAL>, targetClassName, "<init>", type)
+            to invokeInit(type :String) {
+                def nArgs := countArgs(type)
+                def `L@targetType;` := topType(nArgs + 1)
+                mw.visitMethodInsn(<op:INVOKESPECIAL>, targetType, "<init>", type)
                 stackFn(type)
                 unstack(1)
             }
