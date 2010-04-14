@@ -29,6 +29,7 @@ import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.tables.FlexMap;
 import org.erights.e.elang.evm.OuterNounExpr;
 import org.erights.e.elib.slot.Slot;
+import org.erights.e.elib.slot.Guard;
 import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elang.scope.EvalContext;
 import org.erights.e.elib.prim.ScriptMaker;
@@ -37,6 +38,7 @@ import org.erights.e.elib.prim.E;
 import org.erights.e.elib.base.Script;
 import java.lang.reflect.Member;
 import org.erights.e.elang.interp.TypeLoader;
+import org.erights.e.meta.java.lang.InterfaceGuardSugar;
 
 /**
  * @author E. Dean Tribble
@@ -379,7 +381,15 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                 throw new RuntimeException("Calling " + verb + " on null: " + getOptSpan(optOriginal));
             } else {
                 // Certain safe objects can be invoked at compile time...
-                if (value == TypeLoader.THE_ONE) {
+                if (value == TypeLoader.THE_ONE && verb.equals("get")) {
+                    Object[] argValues = literalArgs(xArgs);
+                    if (argValues != null) {
+                        return new LiteralExpr(newCall,
+                                       E.callAll(value, verb, argValues));
+                    }
+                }
+
+                if (value instanceof InterfaceGuardSugar && verb.equals("coerce")) {
                     Object[] argValues = literalArgs(xArgs);
                     if (argValues != null) {
                         return new LiteralExpr(newCall,
