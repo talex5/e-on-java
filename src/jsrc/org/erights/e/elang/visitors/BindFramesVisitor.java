@@ -19,6 +19,7 @@ import org.erights.e.elang.evm.ObjectExpr;
 import org.erights.e.elang.evm.Pattern;
 import org.erights.e.elang.evm.SeqExpr;
 import org.erights.e.elang.evm.StaticScope;
+import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
 import org.erights.e.elang.scope.StaticContext;
 import org.erights.e.elib.tables.ConstMap;
@@ -40,14 +41,14 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
     /**
      *
      */
-    static public BindFramesVisitor make(ScopeLayout scopeLayout) {
-        return new BindOuterFramesVisitor(scopeLayout);
+    static public BindFramesVisitor make(Scope scope) {
+        return new BindOuterFramesVisitor(scope);
     }
 
     /**
      *
      */
-    protected BindFramesVisitor(ScopeLayout bindings,
+    protected BindFramesVisitor(Scope bindings,
                                 int[] localsCell,
                                 ObjectExpr optSource) {
         super(bindings);
@@ -62,7 +63,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         // NOTE the int cell is initialized by Java to 0. This is a cell to
         // accumulate the max locals for any part of the nested method or
         // matcher.
-        return new BindNestedFramesVisitor(myLayout.nest(),
+        return new BindNestedFramesVisitor(myScope.nest(),
                                            0,
                                            new int[1],
                                            myOptSource);
@@ -73,8 +74,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
      */
     private BindNestedFramesVisitor nestObject(ConstMap newSynEnv) {
         ScopeLayout inner =
-          ScopeLayout.make(-1, newSynEnv, myLayout.getFQNPrefix());
-        return new BindNestedFramesVisitor(inner.nest(),
+          ScopeLayout.make(-1, newSynEnv, myScope.getFQNPrefix()).nest();
+        return new BindNestedFramesVisitor(myScope.update(inner),
                                            0,
                                            myMaxLocalsCell,
                                            myOptSource);
@@ -123,7 +124,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         FlexList fields = FlexList.fromType(NounExpr.class, used.length);
         for (int i = 0, max = used.length; i < max; i++) {
             String varName = used[i];
-            NounPattern namer = t.myLayout.getPattern(varName);
+            NounPattern namer = t.myScope.getScopeLayout().getPattern(varName);
             NounExpr noun = namer.getNoun();
             namer = t.asField(noun, namer, fields);
             newSynEnv.put(varName, namer);
@@ -219,7 +220,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                 int arity = lastCall.getArgs().length;
                 if (0 == arity) {
                     // XXX is this right?
-                    NounExpr optNULL = myLayout.getOptNoun("null");
+                    NounExpr optNULL = myScope.getScopeLayout().getOptNoun("null");
                     if (null != optNULL) {
                         // If null isn't in scope, we can't do this
                         // transformation. XXX This seems wrong.

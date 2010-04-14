@@ -102,12 +102,11 @@ public abstract class EExpr extends ENode {
      *         </ul>
      */
     static public Object[] transform(EExpr eExpr, Scope scope) {
-        ScopeLayout scopeLayout = scope.getScopeLayout();
-        VerifyEVisitor vev = new VerifyEVisitor(scopeLayout);
+        VerifyEVisitor vev = new VerifyEVisitor(scope);
         EExpr verifiedExpr = vev.xformEExpr(eExpr);
 
         // Do variable layout and a few simple optimizations.
-        BindFramesVisitor bfv = BindFramesVisitor.make(scopeLayout);
+        BindFramesVisitor bfv = BindFramesVisitor.make(scope);
         EExpr realExpr = bfv.xformEExpr(verifiedExpr);
 
         Object[] result = {realExpr,

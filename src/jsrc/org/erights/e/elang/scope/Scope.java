@@ -216,6 +216,11 @@ public class Scope implements EIteratable {
         return update(myScopeLayout.nestOuter());
     }
 
+    // Is this right?
+    public Scope nest() {
+        return update(myScopeLayout.nest());
+    }
+
     /**
      *
      */

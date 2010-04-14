@@ -8,6 +8,7 @@ import org.erights.e.elang.evm.LocalFinalNounExpr;
 import org.erights.e.elang.evm.LocalSlotNounExpr;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.ObjectExpr;
+import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
 import org.erights.e.elib.base.SourceSpan;
 
@@ -21,7 +22,7 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
     /**
      *
      */
-    BindNestedFramesVisitor(ScopeLayout bindings,
+    BindNestedFramesVisitor(Scope bindings,
                             int localN,
                             int[] localsCell,
                             ObjectExpr optSource) {
@@ -34,7 +35,8 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
      *
      */
     KernelECopyVisitor nest(GuardedPattern oName) {
-        return new BindNestedFramesVisitor(myLayout.nest(oName.getOptName()),
+        ScopeLayout nested = myScope.getScopeLayout().nest(oName.getOptName());
+        return new BindNestedFramesVisitor(myScope.update(nested),
                                            myNextLocal,
                                            myMaxLocalsCell,
                                            myOptSource);
@@ -44,7 +46,7 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
      *
      */
     KernelECopyVisitor nest() {
-        return new BindNestedFramesVisitor(myLayout.nest(),
+        return new BindNestedFramesVisitor(myScope.nest(),
                                            myNextLocal,
                                            myMaxLocalsCell,
                                            myOptSource);
