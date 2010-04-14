@@ -418,5 +418,36 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
 
         return newCall;
     }
+
+    public Object visitSeqExpr(ENode optOriginal, EExpr[] subs) {
+        EExpr[] xSubs = xformEExprs(subs);
+        int i = 0;
+        int j = 0;
+        for (; i < xSubs.length - 1; i++) {
+            if (xSubs[i] instanceof LiteralExpr) {
+                if (((LiteralExpr) xSubs[i]).getValue() != null) {
+                    System.out.println("Warning: constant expression with no effect: " + subs[i] + "\n" + getOptSpan(subs[i]));
+                }
+            } else {
+                xSubs[j] = xSubs[i];
+                j += 1;
+            }
+        }
+        if (j == 0) {
+            return xSubs[i];
+        }
+        if (i == j) {
+            return new SeqExpr(getOptSpan(optOriginal),
+                               xSubs,
+                               getOptScopeLayout());
+        } else {
+            EExpr[] newSubs = new EExpr[j + 1];
+            System.arraycopy(xSubs, 0, newSubs, 0, j);
+            newSubs[j] = xSubs[i];
+            return new SeqExpr(getOptSpan(optOriginal),
+                               newSubs,
+                               getOptScopeLayout());
+        }
+    }
 }
  
