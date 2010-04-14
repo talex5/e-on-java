@@ -4,6 +4,7 @@ package org.erights.e.elang.visitors;
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
 import org.erights.e.elang.evm.AuditorExprs;
+import org.erights.e.elang.evm.FastCallExpr;
 import org.erights.e.elang.evm.CallExpr;
 import org.erights.e.elang.evm.EExpr;
 import org.erights.e.elang.evm.EMatcher;
@@ -30,6 +31,10 @@ import org.erights.e.elang.evm.OuterNounExpr;
 import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elang.scope.EvalContext;
+import org.erights.e.elib.prim.ScriptMaker;
+import org.erights.e.elib.prim.JavaMemberNode;
+import org.erights.e.elib.base.Script;
+import java.lang.reflect.Member;
 
 /**
  * @author E. Dean Tribble
@@ -336,5 +341,46 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             }
         }
         return noun;
+    }
+
+    /** If we know the type of the recipient at compile-time, look up the method now.
+     */
+    public Object visitCallExpr(ENode optOriginal,
+                                EExpr recip,
+                                String verb,
+                                EExpr[] args) {
+        EExpr xRecip = xformEExpr(recip);
+        if (xRecip instanceof LiteralExpr) {
+            Object value = ((LiteralExpr) xRecip).getValue();
+            // XXX: what should we do if we can't find the method?
+            // That means this call will always fail at runtime. But this code may be unreachable. Should
+            // we throw an error or carry on?
+            if (value == null) {
+                throw new RuntimeException("Calling " + verb + " on null: " + getOptSpan(optOriginal));
+            } else {
+                Script script = ScriptMaker.THE_ONE.instanceScript(value.getClass());
+                script = script.shorten(value, verb, args.length);
+                return new FastCallExpr(getOptSpan(optOriginal),
+                                    xRecip,
+                                    verb,
+                                    xformEExprs(args),
+                                    value,
+                                    script,
+                                    getOptScopeLayout());
+                /*
+                if (script instanceof JavaMemberNode) {
+                    //Member member = (Member) ((JavaMemberNode) script).member();
+                    //System.out.println("Expand call " + value + "." + verb + " to " + member);
+
+                }
+                */
+            }
+        }
+
+        return new CallExpr(getOptSpan(optOriginal),
+                            xRecip,
+                            verb,
+                            xformEExprs(args),
+                            getOptScopeLayout());
     }
 }

@@ -5,6 +5,7 @@ package org.erights.e.elang.visitors;
 
 import org.erights.e.elang.evm.AtomicExpr;
 import org.erights.e.elang.evm.BindingPattern;
+import org.erights.e.elang.evm.CallExpr;
 import org.erights.e.elang.evm.EExpr;
 import org.erights.e.elang.evm.ENode;
 import org.erights.e.elang.evm.FinalPattern;
