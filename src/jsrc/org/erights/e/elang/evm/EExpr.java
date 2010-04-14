@@ -52,49 +52,11 @@ public abstract class EExpr extends ENode {
 
     static private final long serialVersionUID = -7918236472800706525L;
 
-    static private class Transformer implements OneArgFunc, DeepPassByCopy {
-
-        static private final long serialVersionUID = 5695854634368095134L;
-
-        Transformer() {
-        }
-
-        public Object run(Object arg) {
-            ConstList args = (ConstList)arg;
-            EExpr eExpr = (EExpr)args.get(0);
-            ScopeLayout scopeLayout = (ScopeLayout)args.get(1);
-            VerifyEVisitor vev = new VerifyEVisitor(scopeLayout);
-            EExpr verifiedExpr = vev.xformEExpr(eExpr);
-
-            // Do variable layout and a few simple optimizations.
-            BindFramesVisitor bfv = BindFramesVisitor.make(scopeLayout);
-            EExpr realExpr = bfv.xformEExpr(verifiedExpr);
-
-            Object[] result = {realExpr,
-              bfv.getOptScopeLayout(),
-              EInt.valueOf(bfv.maxLocals())};
-            return result;
-        }
-
-        /**
-         * XXX We only say we implement this, but don't really, since we really
-         * only need to be DeepFrozen; but currently the only way to declare
-         * ourselves to be DeepFrozen is to claim to be DeepPassByCopy.
-         */
-        public Object[] getSpreadUncall() {
-            T.fail("XXX not yet implemented");
-            return null; //make compiler happy
-        }
-    }
-
     static private class GeneratedClassLoader extends ClassLoader {
         public Class defineClass(byte[] code) {
             return defineClass("Test", code, 0, code.length);
         }
     }
-
-    static private final Memoizer OurTransformer =
-      new Memoizer(new Transformer(), 1000);
 
     /**
      *
@@ -132,13 +94,26 @@ public abstract class EExpr extends ENode {
      * memoized. Once we compile Transformed-E to JVM bytecodes, this will
      * allow us to cache the class files and classes as well.
      *
+     * But without the Scope no interesting optimisations are possible, so
+     * put it back in.
+     *
      * @return A triple of <ul> <li>a Transformed-E expression, <li>the new
      *         ScopeLayout, and <li>the number of locals it needs to evaluate.
      *         </ul>
      */
-    static public Object[] transform(EExpr self, ScopeLayout scopeLayout) {
-        Object[] args = {self, scopeLayout};
-        return (Object[])((ConstList)OurTransformer.run(args)).getArray();
+    static public Object[] transform(EExpr eExpr, Scope scope) {
+        ScopeLayout scopeLayout = scope.getScopeLayout();
+        VerifyEVisitor vev = new VerifyEVisitor(scopeLayout);
+        EExpr verifiedExpr = vev.xformEExpr(eExpr);
+
+        // Do variable layout and a few simple optimizations.
+        BindFramesVisitor bfv = BindFramesVisitor.make(scopeLayout);
+        EExpr realExpr = bfv.xformEExpr(verifiedExpr);
+
+        Object[] result = {realExpr,
+          bfv.getOptScopeLayout(),
+          EInt.valueOf(bfv.maxLocals())};
+        return result;
     }
 
     /**
@@ -160,8 +135,7 @@ public abstract class EExpr extends ENode {
     }
 
     public Object compile(Scope scope, Object compiler) {
-        ScopeLayout oldLayout = scope.getScopeLayout();
-        Object[] triple = transform(this, oldLayout);
+        Object[] triple = transform(this, scope);
         Scope newScope = scope.update((ScopeLayout)triple[1]);
 
         EvalContext context = newScope.newContext(0);
@@ -193,8 +167,7 @@ public abstract class EExpr extends ENode {
      * new scope.
      */
     public Object[] evalToPair(Scope scope) {
-        ScopeLayout oldLayout = scope.getScopeLayout();
-        Object[] triple = transform(this, oldLayout);
+        Object[] triple = transform(this, scope);
         EExpr realExpr = (EExpr)triple[0];
         Scope newScope = scope.update((ScopeLayout)triple[1]);
         int maxLocals = ((Integer)triple[2]).intValue();
