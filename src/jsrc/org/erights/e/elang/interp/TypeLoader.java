@@ -46,7 +46,7 @@ import org.erights.e.elib.util.ClassCache;
  * @author Mark S. Miller
  * @author E. Dean Tribble
  */
-class TypeLoader extends BaseLoader {
+public class TypeLoader extends BaseLoader {
 
     static public final TypeLoader THE_ONE = new TypeLoader();
 

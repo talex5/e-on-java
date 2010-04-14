@@ -29,6 +29,8 @@ import org.erights.e.elib.oldeio.TextWriter;
 import org.erights.e.elib.prim.StaticMaker;
 import org.erights.e.elib.prim.Thrower;
 import org.erights.e.elib.ref.Ref;
+import org.erights.e.elib.slot.FinalSlot;
+import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.tables.ConstList;
 import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.tables.Twine;
@@ -89,6 +91,7 @@ public class LiteralExpr extends EExpr {
 
     static private final long serialVersionUID = 1971170941046568560L;
 
+    private final EExpr myOptExpr;        // null => we're a real literal
     private final Object myValue;
 
     /**
@@ -121,6 +124,19 @@ public class LiteralExpr extends EExpr {
                       "Must be DeepPassByCopy: ",
                       value);
         }
+        myOptExpr = null;
+    }
+
+    /** A value we computed at compile-time. */
+    // XXX: restrict access?
+    public LiteralExpr(EExpr expr, Object value) {
+        super(expr.getOptSpan(), expr.getOptScopeLayout());
+        myValue = value;
+        myOptExpr = expr;
+    }
+
+    public Slot getOptKnownSlot() {
+        return new FinalSlot(myValue);
     }
 
     /**
@@ -182,7 +198,11 @@ public class LiteralExpr extends EExpr {
      *
      */
     public void subPrintOn(TextWriter out, int priority) throws IOException {
-        out.print(printRep());
+        if (myOptExpr == null) {
+            out.print(printRep());
+        } else {
+            out.print("[" + myValue + "]");
+        }
     }
 
     /**
@@ -219,5 +239,9 @@ public class LiteralExpr extends EExpr {
      */
     public Object getValue() {
         return myValue;
+    }
+
+    public EExpr getOptExpr() {
+        return myOptExpr;
     }
 }

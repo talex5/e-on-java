@@ -14,6 +14,7 @@ import org.erights.e.elang.evm.ENode;
 import org.erights.e.elang.evm.EScript;
 import org.erights.e.elang.evm.FinalPattern;
 import org.erights.e.elang.evm.GuardedPattern;
+import org.erights.e.elang.evm.LiteralExpr;
 import org.erights.e.elang.evm.MetaContextExpr;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.NounPattern;
@@ -28,12 +29,17 @@ import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.tables.FlexMap;
 import org.erights.e.elang.evm.OuterNounExpr;
 import org.erights.e.elib.slot.Slot;
+import org.erights.e.elib.slot.Guard;
 import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elang.scope.EvalContext;
 import org.erights.e.elib.prim.ScriptMaker;
 import org.erights.e.elib.prim.JavaMemberNode;
+import org.erights.e.elib.prim.E;
 import org.erights.e.elib.base.Script;
 import java.lang.reflect.Member;
+import org.erights.e.elang.interp.TypeLoader;
+import org.erights.e.meta.java.lang.InterfaceGuardSugar;
+import org.erights.e.develop.exception.EBacktraceException;
 
 /**
  * @author E. Dean Tribble
@@ -338,6 +344,19 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         }
     }
 
+    private Object[] literalArgs(EExpr[] args) {
+        Object[] argValues = new Object[args.length];
+        for (int i = 0; i < args.length; i++) {
+            Slot optKnownArgSlot = args[i].getOptKnownSlot();
+            if (optKnownArgSlot != null) {
+                argValues[i] = optKnownArgSlot.get();
+            } else {
+                return null;
+            }
+        }
+        return argValues;
+    }
+
     /** If we know the type of the recipient at compile-time, look up the method now.
      */
     public Object visitCallExpr(ENode optOriginal,
@@ -345,6 +364,13 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                                 String verb,
                                 EExpr[] args) {
         EExpr xRecip = xformEExpr(recip);
+        EExpr[] xArgs = xformEExprs(args);
+
+        CallExpr newCall = new CallExpr(getOptSpan(optOriginal),
+                            xRecip,
+                            verb,
+                            xArgs,
+                            getOptScopeLayout());
 
         Slot optKnownSlot = myCompilerFlags.basicOptimisations ? xRecip.getOptKnownSlot() : null;
         if (optKnownSlot != null && optKnownSlot instanceof FinalSlot) {
@@ -355,22 +381,41 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             if (value == null) {
                 warn(optOriginal, "Calling " + verb + " on null");
             } else {
-                Script script = ScriptMaker.THE_ONE.instanceScript(value.getClass());
-                script = script.shorten(value, verb, args.length);
+                // Certain safe objects can be invoked at compile time...
+                if (value == TypeLoader.THE_ONE && verb.equals("get")) {
+                    Object[] argValues = literalArgs(xArgs);
+                    if (argValues != null) {
+                        return new LiteralExpr(newCall,
+                                       E.callAll(value, verb, argValues));
+                    }
+                }
+
+                if (value instanceof InterfaceGuardSugar && verb.equals("coerce")) {
+                    Object[] argValues = literalArgs(xArgs);
+                    if (argValues != null) {
+                        return new LiteralExpr(newCall,
+                                       E.callAll(value, verb, argValues));
+                    }
+                }
+
+                // Otherwise, at least shorten the script...
+                Script script;
+                try {
+                    script = ScriptMaker.THE_ONE.instanceScript(value.getClass());
+                    script = script.shorten(value, verb, args.length);
+                } catch (Exception ex) {
+                    throw new EBacktraceException(ex, "Compile error while looking up method in:\n  " + optOriginal + "\n@ " + getOptSpan(optOriginal));
+                }
                 return new FastCallExpr(getOptSpan(optOriginal),
                                     xRecip,
                                     verb,
-                                    xformEExprs(args),
+                                    xArgs,
                                     value,
                                     script,
                                     getOptScopeLayout());
             }
         }
 
-        return new CallExpr(getOptSpan(optOriginal),
-                            xRecip,
-                            verb,
-                            xformEExprs(args),
-                            getOptScopeLayout());
+        return newCall;
     }
 }
