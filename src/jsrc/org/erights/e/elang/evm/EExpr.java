@@ -105,7 +105,7 @@ public abstract class EExpr extends ENode {
     }
 
     public CompiledE compile(Scope scope) {
-        Object[] result = transform(this, scope.getScopeLayout());
+        Object[] result = transform(this, scope);
         Scope transformedScope = scope.update((ScopeLayout) result[1]);
         int maxLocals = ((Integer)result[2]).intValue();
         return new CompiledE(
@@ -144,8 +144,7 @@ public abstract class EExpr extends ENode {
      * new scope.
      */
     public Object[] evalToPair(Scope scope) {
-        ScopeLayout oldLayout = scope.getScopeLayout();
-        Object[] triple = transform(this, oldLayout);
+        Object[] triple = transform(this, scope);
         EExpr realExpr = (EExpr)triple[0];
         Scope newScope = scope.update((ScopeLayout)triple[1]);
         int maxLocals = ((Integer)triple[2]).intValue();

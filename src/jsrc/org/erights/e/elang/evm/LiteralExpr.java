@@ -89,6 +89,7 @@ public class LiteralExpr extends EExpr {
 
     static private final long serialVersionUID = 1971170941046568560L;
 
+    private final EExpr myOptExpr;        // null => we're a real literal
     private final Object myValue;
 
     /**
@@ -121,6 +122,15 @@ public class LiteralExpr extends EExpr {
                       "Must be DeepPassByCopy: ",
                       value);
         }
+        myOptExpr = null;
+    }
+
+    /** A value we computed at compile-time. */
+    // XXX: restrict access?
+    public LiteralExpr(EExpr expr, Object value) {
+        super(expr.getOptSpan(), expr.getOptScopeLayout());
+        myValue = value;
+        myOptExpr = expr;
     }
 
     /**
@@ -182,7 +192,11 @@ public class LiteralExpr extends EExpr {
      *
      */
     public void subPrintOn(TextWriter out, int priority) throws IOException {
-        out.print(printRep());
+        if (myOptExpr == null) {
+            out.print(printRep());
+        } else {
+            out.print("[" + myValue + "]");
+        }
     }
 
     /**
@@ -219,5 +233,9 @@ public class LiteralExpr extends EExpr {
      */
     public Object getValue() {
         return myValue;
+    }
+
+    public EExpr getOptExpr() {
+        return myOptExpr;
     }
 }
