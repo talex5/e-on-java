@@ -56,7 +56,7 @@ import org.erights.e.elib.serial.CompiletimeCallable;
 public abstract class BindFramesVisitor extends BaseBindVisitor {
 
     final int[] myMaxLocalsCell;
-    boolean inSlotExpr = false;
+    protected boolean inSlotExpr = false;
 
     /**
      * A verified and bound Kernel-E tree.
@@ -91,7 +91,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         return new BindNestedFramesVisitor(myScope.nest(),
                                            0,
                                            new int[1],
-                                           myOptSource);
+                                           myOptSource,
+                                           this);
     }
 
     /**
@@ -103,7 +104,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         return new BindNestedFramesVisitor(myScope.update(inner),
                                            0,
                                            myMaxLocalsCell,
-                                           myOptSource);
+                                           myOptSource,
+                                           this);
     }
 
     /**
@@ -537,6 +539,10 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                               xformEExpr(optEjectorExpr),
                               xformEExpr(rValue),
                               getOptScopeLayout());
+    }
+
+    protected Slot getCompileSlot(String varName) {
+        return null;
     }
 }
  

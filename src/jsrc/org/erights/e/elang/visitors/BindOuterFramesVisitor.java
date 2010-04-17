@@ -39,7 +39,8 @@ class BindOuterFramesVisitor extends BindFramesVisitor {
         return new BindNestedFramesVisitor(myScope.update(nested),
                                            0,
                                            myMaxLocalsCell,
-                                           null);
+                                           null,
+                                           this);
     }
 
     /**
@@ -49,7 +50,8 @@ class BindOuterFramesVisitor extends BindFramesVisitor {
         return new BindNestedFramesVisitor(myScope.nest(),
                                            0,
                                            myMaxLocalsCell,
-                                           null);
+                                           null,
+                                           this);
     }
 
     /**
