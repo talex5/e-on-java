@@ -42,6 +42,10 @@ public class FastCallExpr extends CallExpr {
         myScript = script;
     }
 
+    public Object getReceiver() {
+        return myReceiver;
+    }
+
     protected Object subEval(EvalContext ctx, boolean forValue) {
         Object[] argVals = new Object[myArgs.length];
         for (int i = 0, max = argVals.length; i < max; i++) {

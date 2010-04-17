@@ -50,6 +50,7 @@ def makeEvalContextAuthor(auths,
         # TODO: also in makeSeedVat
         topScope["require"]
         topScope["int"]
+        topScope["E"]
 
         def evalContext {
             to getTopScope() :Scope {

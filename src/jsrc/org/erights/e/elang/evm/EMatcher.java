@@ -32,6 +32,7 @@ import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.util.OneArgFunc;
 import org.erights.e.meta.java.math.EInt;
 import org.erights.e.elib.base.Script;
+import org.erights.e.elib.prim.ScriptMaker;
 
 import java.io.IOException;
 
@@ -169,6 +170,54 @@ public class EMatcher extends ENode implements Script {
         myBody.printAsBlockOn(out);
     }
 
+    public Script shortenSuper(NounExpr noun) {
+        // Optimise the special case (the expansion of super):
+        //   match noun { E.callWithPair(super, noun) }
+        if (!(myBody instanceof FastCallExpr)) {
+            return this;
+        }
+
+        FastCallExpr call = (FastCallExpr) myBody;
+        Object rcvr = call.getReceiver();
+        if (!(rcvr instanceof StaticMaker)) {
+            return this;
+        }
+        
+        String type = ((StaticMaker) rcvr).asType().getFQName();
+        if (!type.equals("org.erights.e.elang.interp.E4E")) {
+            return this;
+        }
+
+        if (!call.getVerb().equals("callWithPair")) {
+            return this;
+        }
+
+        System.out.println("E.callWithPair!");
+
+        EExpr[] args = call.getArgs();
+        if (args.length != 2) {
+            return this;
+        }
+
+        System.out.println("E.callWithPair: " + args[0].getClass());
+        System.out.println("E.callWithPair: " + args[1].getClass());
+
+        if (args[0] instanceof LiteralExpr && args[1] instanceof LocalFinalNounExpr) {
+            // super known at compile-time
+            Object supr = ((LiteralExpr) args[0]).getValue();
+            LocalFinalNounExpr theNoun = (LocalFinalNounExpr) args[1];
+            if (noun.getName().equals(theNoun.getName())) {
+                // OK, everything matches! Any call to "this" simply forwards to "supr".
+                System.out.println("Forward to " + supr);
+
+                Script suprScript = ScriptMaker.THE_ONE.instanceScript(supr.getClass());
+                return suprScript;
+            }
+        }
+
+        return this;
+    }
+
     /** Would this matcher match a call to aVerb/arity?
       * If yes, return a script for that (possibly ==ifUnsure).
       * If not , return null.
@@ -180,10 +229,11 @@ public class EMatcher extends ENode implements Script {
                 return ifUnsure;
             }
             Class patternClass = myPattern.getClass();
-            if (patternClass == IgnorePattern.class ||
-                patternClass == NounPattern.class ||
-                patternClass == FinalPattern.class) {
-                return this;
+            if (patternClass == FinalPattern.class) {
+                NounExpr noun = ((FinalPattern) myPattern).getNoun();
+
+                // We certainly match. But maybe we can shorten further by looking in the body...
+                return shortenSuper(noun);
             }
         } else if (myPattern instanceof ListPattern) {
             Pattern[] subs = ((ListPattern) myPattern).getSubPatterns();
