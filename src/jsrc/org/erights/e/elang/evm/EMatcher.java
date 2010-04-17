@@ -264,7 +264,7 @@ public class EMatcher extends ENode implements Script {
                 Object forward = optShortenSuper(noun);
                 if (forward != null) {
                     Script suprScript = ScriptMaker.THE_ONE.instanceScript(forward.getClass());
-                    return new SuperScript(forward, suprScript.shorten(null, aVerb, arity));
+                    return new SuperScript(forward, suprScript.shorten(forward, aVerb, arity));
                 } else {
                     return this;
                 }
