@@ -55,6 +55,8 @@ def loaderAuthor(makeTraceln) {
         # an updated traceln.
         def extendedSafeScope := extendEnv(safeScope, envExtras)
 
+        def cached := [].asMap().diverge()
+
         # There are several scope layouts:
         # - our safeScope's layout
         # - each loaded file's safeScope layout (with the file's FQName)
@@ -85,8 +87,10 @@ def loaderAuthor(makeTraceln) {
 
         return def loader {
             to get(name) {
-                def src := sourceDir[`$name.emaker`].getTwine()
-                return eParser(src).eval(makeFileScope(extendedSafeScope, name))
+                return cached.fetch(name, fn {
+                    def src := sourceDir[`$name.emaker`].getTwine()
+                    cached[name] := eParser(src).compile(makeFileScope(extendedSafeScope, name))
+                })()
             }
 
             /** Like get/1, but evaluate in an extension of baseScope rather than of safeScope. */
