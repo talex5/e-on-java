@@ -3,6 +3,7 @@ package org.erights.e.elang.visitors;
 // Copyright 2002 Combex, Inc. under the terms of the MIT X license
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
+import org.erights.e.elang.evm.AtomicExpr;
 import org.erights.e.elang.evm.AuditorExprs;
 import org.erights.e.elang.evm.FastCallExpr;
 import org.erights.e.elang.evm.CallExpr;
@@ -19,6 +20,7 @@ import org.erights.e.elang.evm.NounPattern;
 import org.erights.e.elang.evm.ObjectExpr;
 import org.erights.e.elang.evm.Pattern;
 import org.erights.e.elang.evm.SeqExpr;
+import org.erights.e.elang.evm.SlotExpr;
 import org.erights.e.elang.evm.LiteralExpr;
 import org.erights.e.elang.evm.StaticScope;
 import org.erights.e.elang.scope.Scope;
@@ -48,6 +50,7 @@ import org.erights.e.develop.exception.EBacktraceException;
 public abstract class BindFramesVisitor extends BaseBindVisitor {
 
     final int[] myMaxLocalsCell;
+    boolean inSlotExpr = false;
 
     /**
      * A verified and bound Kernel-E tree.
@@ -334,6 +337,9 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
 
     public Object visitNounExpr(ENode optOriginal, String varName) {
         Object noun = super.visitNounExpr(optOriginal, varName);
+        if (inSlotExpr)
+            return noun;
+
         if (noun instanceof OuterNounExpr) {
             EvalContext evalContext = myScope.newContext(0);
             Slot slot = ((OuterNounExpr) noun).getSlot(evalContext);
@@ -450,6 +456,18 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             return new SeqExpr(getOptSpan(optOriginal),
                                newSubs,
                                getOptScopeLayout());
+        }
+    }
+
+    // Don't expand the noun to a literal if we want the slot itself
+    public Object visitSlotExpr(ENode optOriginal, AtomicExpr noun) {
+        inSlotExpr = true;
+        try {
+            return new SlotExpr(getOptSpan(optOriginal),
+                                (AtomicExpr)xformEExpr(noun),
+                                getOptScopeLayout());
+        } finally {
+            inSlotExpr = false;
         }
     }
 }
