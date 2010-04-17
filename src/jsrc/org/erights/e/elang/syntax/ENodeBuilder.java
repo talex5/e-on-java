@@ -935,9 +935,7 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
                                       finalPattern(vTemp)),
                                  null);
 
-        EExpr body = sequence(call(REQUIRE,
-                                   "run",
-                                   list(noun(fTemp), literal(BAD_FOR))),
+        EExpr body = 
                               ifx(condAnd(matchBind(noun(kTemp),
                                                     NO_POSER,
                                                     key),
@@ -947,7 +945,7 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
                                                     value)),
                                   escape(finalPattern("__continue"),
                                          sequence(bodyExpr, NULL),
-                                         null)));
+                                         null));
 
         EExpr closure = object(" For-loop body ",
                                ignoreOName(),
