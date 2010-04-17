@@ -43,6 +43,7 @@ import java.lang.reflect.Member;
 import org.erights.e.elang.interp.TypeLoader;
 import org.erights.e.meta.java.lang.InterfaceGuardSugar;
 import org.erights.e.develop.exception.EBacktraceException;
+import org.quasiliteral.text.SimpleQuasiParser;
 
 /**
  * @author E. Dean Tribble
@@ -400,6 +401,15 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                 }
 
                 if (value instanceof InterfaceGuardSugar && verb.equals("coerce")) {
+                    Object[] argValues = literalArgs(xArgs);
+                    if (argValues != null) {
+                        return new LiteralExpr(newCall,
+                                       E.callAll(value, verb, argValues));
+                    }
+                }
+
+                if (value == SimpleQuasiParser.THE_ONE &&
+                        (verb.equals("valueMaker") || verb.equals("matchMaker"))) {
                     Object[] argValues = literalArgs(xArgs);
                     if (argValues != null) {
                         return new LiteralExpr(newCall,
