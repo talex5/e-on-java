@@ -48,7 +48,7 @@ public class FastCallExpr extends CallExpr {
             argVals[i] = myArgs[i].subEval(ctx, true);
         }
 
-        //Runner.pushEStackItem(this);
+        Runner.pushEStackItem(this);
         try {
             return myScript.execute(myReceiver, myVerb, argVals);
         } catch (Ejection ej) {
@@ -61,7 +61,7 @@ public class FastCallExpr extends CallExpr {
             }
             throw Ejection.backtrace(problem, msg);
         } finally {
-            //Runner.popEStackItem();
+            Runner.popEStackItem();
         }
     }
 

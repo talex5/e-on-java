@@ -128,7 +128,7 @@ public class CallExpr extends EExpr implements EStackItem {
             argVals[i] = myArgs[i].subEval(ctx, true);
         }
 
-        //Runner.pushEStackItem(this);
+        Runner.pushEStackItem(this);
         try {
             //noinspection UnnecessaryLocalVariable
             Object result = mySelector.callIt(receiver, argVals);
@@ -143,7 +143,7 @@ public class CallExpr extends EExpr implements EStackItem {
             }
             throw Ejection.backtrace(problem, msg);
         } finally {
-            //Runner.popEStackItem();
+            Runner.popEStackItem();
         }
     }
 
