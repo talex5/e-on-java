@@ -48,6 +48,7 @@ import org.erights.e.elang.interp.TypeLoader;
 import org.erights.e.meta.java.lang.InterfaceGuardSugar;
 import org.erights.e.develop.exception.EBacktraceException;
 import org.quasiliteral.text.SimpleQuasiParser;
+import org.erights.e.elib.serial.CompiletimeCallable;
 
 /**
  * @author E. Dean Tribble
@@ -408,6 +409,18 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                     if (argValues != null) {
                         return new LiteralExpr(newCall,
                                        E.callAll(value, verb, argValues));
+                    }
+                }
+
+                if (value instanceof CompiletimeCallable) {
+                    Object[] argValues = literalArgs(xArgs);
+                    if (argValues != null) {
+                        Object result = ((CompiletimeCallable) value).optCompileCall(verb, argValues);
+                        System.out.println("CompiletimeCallable " + value + "." + verb + ": " + result);
+                        // TODO: handle a literal null?
+                        if (result != null) {
+                            return new LiteralExpr(newCall, result);
+                        }
                     }
                 }
 

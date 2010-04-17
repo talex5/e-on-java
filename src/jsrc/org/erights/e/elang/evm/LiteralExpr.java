@@ -129,7 +129,7 @@ public class LiteralExpr extends EExpr {
     // XXX: restrict access?
     public LiteralExpr(EExpr expr, Object value) {
         super(expr.getOptSpan(), expr.getOptScopeLayout());
-        myValue = value;
+        myValue = Ref.resolution(value);
         myOptExpr = expr;
     }
 

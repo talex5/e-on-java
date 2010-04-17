@@ -34,6 +34,7 @@ import org.erights.e.elib.ref.Ref;
 import org.erights.e.elib.ref.Resolver;
 import org.erights.e.elib.serial.BaseLoader;
 import org.erights.e.elib.serial.JOSSPassByConstruction;
+import org.erights.e.elib.serial.CompiletimeCallable;
 import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.tables.FlexMap;
@@ -54,7 +55,7 @@ import java.net.URL;
  * @author Mark S. Miller
  * @author E. Dean Tribble
  */
-class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
+class ImportLoader extends BaseLoader implements JOSSPassByConstruction, CompiletimeCallable {
     static private final long serialVersionUID = 1L;
 
     /**
@@ -159,12 +160,39 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
         return StaticMaker.make(clazz);
     }
 
+    public Object optCompileCall(String verb, Object[] args) {
+        if (verb.equals("get") && args.length == 1) {
+            return getEasyValue((String) args[0]);
+        }
+        return null;
+    }
+
     /**
      * Gets the value at fqName, and indicate whether it is itself DeepFrozen.
      * <p/>
      * If not found, throws an exception.
      */
     private Object getValue(String fqName) {
+        Object easy = getEasyValue(fqName);
+        if (easy != null) {
+            return easy;
+        }
+
+        //XXX todo: look for E prefix as package
+        Twine eSource = optESource(fqName);
+        if (null != eSource) {
+            EExpr eExpr = (EExpr)EParser.run(eSource);
+            //The fqnPrefix for the loaded defs has this fqName as its outer
+            //"class".
+            Scope newSafeScope = mySafeScope.withPrefix(fqName + "$");
+            return eExpr.compile(newSafeScope);
+        }
+
+        T.fail(fqName + " not found");
+        return null; //make compiler happy
+    }
+
+    private Object getEasyValue(String fqName) {
         if (myOptThread == null) {
             myOptThread = Thread.currentThread();
         } else {
@@ -202,20 +230,7 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
             }
         }
 
-        //XXX todo: look for E prefix as package
-        Twine eSource = optESource(fqName);
-        if (null != eSource) {
-            EExpr eExpr = (EExpr)EParser.run(eSource);
-            //The fqnPrefix for the loaded defs has this fqName as its outer
-            //"class".
-            Scope newSafeScope = mySafeScope.withPrefix(fqName + "$");
-            result = eExpr.compile(newSafeScope);
-
-            return result;
-        }
-
-        T.fail(fqName + " not found");
-        return null; //make compiler happy
+        return null;
     }
 
     /**
