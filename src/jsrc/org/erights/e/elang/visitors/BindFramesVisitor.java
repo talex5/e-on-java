@@ -468,9 +468,11 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         int j = 0;
         for (; i < xSubs.length - 1; i++) {
             if (xSubs[i] instanceof LiteralExpr) {
+                /*
                 if (((LiteralExpr) xSubs[i]).getValue() != null) {
                     System.out.println("Warning: constant expression with no effect: " + subs[i] + "\n" + getOptSpan(subs[i]));
                 }
+                */
             } else if (xSubs[i] instanceof LocalFinalNounExpr) {
                 //System.out.println("Warning: constant expression with no effect: " + subs[i] + "\n" + getOptSpan(subs[i]));
             } else {

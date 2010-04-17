@@ -85,7 +85,7 @@ class BindOuterFramesVisitor extends BindFramesVisitor {
                 EExpr xrValue = xDefine.getRValue();
                 if (xNoun instanceof OuterNounExpr && xrValue instanceof LiteralExpr) {
                     Object value = ((LiteralExpr) xrValue).getValue();
-                    System.out.println("Constant: " + xNoun + " = " + value);
+                    //System.out.println("Constant: " + xNoun + " = " + value);
                     xNoun.initFinal(myScope.newContext(0), value);
                     return xrValue;
                 }

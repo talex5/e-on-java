@@ -99,14 +99,14 @@ public abstract class EExpr extends ENode {
         EExpr realExpr = bfv.xformEExpr(verifiedExpr);
 
         Object[] result = {realExpr,
-          bfv.getOptScopeLayout(),
+          bfv.getScope(),
           EInt.valueOf(bfv.maxLocals())};
         return result;
     }
 
     public CompiledE compile(Scope scope) {
         Object[] result = transform(this, scope);
-        Scope transformedScope = scope.update((ScopeLayout) result[1]);
+        Scope transformedScope = (Scope) result[1];
         int maxLocals = ((Integer)result[2]).intValue();
         return new CompiledE(
                 (EExpr) result[0],
@@ -146,7 +146,7 @@ public abstract class EExpr extends ENode {
     public Object[] evalToPair(Scope scope) {
         Object[] triple = transform(this, scope);
         EExpr realExpr = (EExpr)triple[0];
-        Scope newScope = scope.update((ScopeLayout)triple[1]);
+        Scope newScope = (Scope) triple[1];
         int maxLocals = ((Integer)triple[2]).intValue();
         Object value = eval(realExpr, newScope, maxLocals);
         Object[] result = {value, newScope};

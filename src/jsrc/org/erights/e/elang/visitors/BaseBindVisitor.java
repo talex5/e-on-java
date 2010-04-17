@@ -41,6 +41,10 @@ public abstract class BaseBindVisitor extends KernelECopyVisitor {
         return myScope.getScopeLayout();
     }
 
+    public Scope getScope() {
+        return myScope;
+    }
+
     /**
      *
      */
