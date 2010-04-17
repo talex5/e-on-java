@@ -10,6 +10,14 @@ import org.erights.e.elang.evm.OuterNounExpr;
 import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
 import org.erights.e.elib.base.SourceSpan;
+import org.erights.e.elang.evm.ENode;
+import org.erights.e.elang.evm.AtomicExpr;
+import org.erights.e.elang.evm.EExpr;
+import org.erights.e.elang.evm.DefineExpr;
+import org.erights.e.elang.evm.NounExpr;
+import org.erights.e.elang.evm.LiteralExpr;
+import org.erights.e.elang.evm.Pattern;
+import org.erights.e.elang.evm.FinalPattern;
 
 /**
  * @author E. Dean Tribble
@@ -61,5 +69,29 @@ class BindOuterFramesVisitor extends BindFramesVisitor {
                                  varName,
                                  outerCount,
                                  getOptScopeLayout());
+    }
+
+    public Object visitDefineExpr(ENode optOriginal,
+                                  Pattern patt,
+                                  EExpr optEjectorExpr,
+                                  EExpr rValue) {
+        DefineExpr xDefine = (DefineExpr) super.visitDefineExpr(optOriginal, patt, optEjectorExpr, rValue);
+
+        Pattern xPattern = xDefine.getPattern();
+        if (xPattern instanceof FinalPattern) {
+            FinalPattern finalPattern = (FinalPattern) xPattern;
+            if (finalPattern.getOptGuardExpr() == null) {
+                NounExpr xNoun = finalPattern.getNoun();
+                EExpr xrValue = xDefine.getRValue();
+                if (xNoun instanceof OuterNounExpr && xrValue instanceof LiteralExpr) {
+                    Object value = ((LiteralExpr) xrValue).getValue();
+                    System.out.println("Constant: " + xNoun + " = " + value);
+                    xNoun.initFinal(myScope.newContext(0), value);
+                    return xrValue;
+                }
+            }
+        }
+
+        return xDefine;
     }
 }

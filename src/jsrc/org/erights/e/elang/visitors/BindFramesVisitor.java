@@ -416,7 +416,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                     Object[] argValues = literalArgs(xArgs);
                     if (argValues != null) {
                         Object result = ((CompiletimeCallable) value).optCompileCall(verb, argValues);
-                        System.out.println("CompiletimeCallable " + value + "." + verb + ": " + result);
+                        //System.out.println("CompiletimeCallable " + value + "." + verb + ": " + result);
                         // TODO: handle a literal null?
                         if (result != null) {
                             return new LiteralExpr(newCall, result);
