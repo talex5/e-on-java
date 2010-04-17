@@ -31,6 +31,7 @@ import org.erights.e.elang.evm.OuterNounExpr;
 import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.slot.Guard;
 import org.erights.e.elib.slot.FinalSlot;
+import org.erights.e.elang.interp.LazyEvalSlot;
 import org.erights.e.elang.scope.EvalContext;
 import org.erights.e.elib.prim.ScriptMaker;
 import org.erights.e.elib.prim.JavaMemberNode;
@@ -336,7 +337,9 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         if (noun instanceof OuterNounExpr) {
             EvalContext evalContext = myScope.newContext(0);
             Slot slot = ((OuterNounExpr) noun).getSlot(evalContext);
-            if (slot != null && slot instanceof FinalSlot) {
+            if (slot != null &&
+                    (slot instanceof FinalSlot ||
+                     slot instanceof LazyEvalSlot && ((LazyEvalSlot) slot).isFinal())) {
                 //System.out.println("FinalSlot expr: " + noun + " -> " + slot.get());
                 return new LiteralExpr((OuterNounExpr) noun, slot.get());
             } else {
