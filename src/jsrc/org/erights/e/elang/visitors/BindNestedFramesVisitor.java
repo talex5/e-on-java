@@ -134,7 +134,7 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
                     // Value is known at compile time. Remember it.
                     Object value = ((LiteralExpr) xrValue).getValue();
                     myKnownLocals.put(xNoun.getName(), new FinalSlot(value));
-                    System.out.println("Local constant: " + xNoun + " = " + value);
+                    //System.out.println("Local constant: " + xNoun + " = " + value);
                 }
             }
         }
@@ -151,7 +151,7 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
             noun instanceof FrameFinalNounExpr) {
             Slot known = getCompileSlot(((NounExpr) noun).getName());
             if (known != null) {
-                System.out.println("LocalFinalNounExpr expr: " + noun + " -> " + known.get());
+                //System.out.println("LocalFinalNounExpr expr: " + noun + " -> " + known.get());
                 return new LiteralExpr((NounExpr) noun, known.get());
             } else {
                 //System.out.println("Can't expand " + noun);

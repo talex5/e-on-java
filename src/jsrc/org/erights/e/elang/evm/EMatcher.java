@@ -226,8 +226,6 @@ public class EMatcher extends ENode implements Script {
             return null;
         }
 
-        System.out.println("E.callWithPair!");
-
         EExpr[] args = call.getArgs();
         if (args.length != 2) {
             return null;
