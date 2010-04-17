@@ -182,7 +182,7 @@ public abstract class JavaMemberNode extends MethodNode implements EStackItem {
             //make the typical case faster: first try invoking without
             //coercion. If we get into trouble, then try coercing the
             //arguments.
-            Runner.pushEStackItem(this);
+            //Runner.pushEStackItem(this);
             try {
                 result = innerExecute(optSelf, args);
             } catch (IllegalArgumentException ex) {
@@ -197,7 +197,7 @@ public abstract class JavaMemberNode extends MethodNode implements EStackItem {
                     throw ex2;
                 }
             } finally {
-                Runner.popEStackItem();
+                //Runner.popEStackItem();
             }
             myCallCounter.bumpOkCount();
             return result;
