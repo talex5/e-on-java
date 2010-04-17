@@ -37,6 +37,7 @@ import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.util.OneArgFunc;
 import org.erights.e.elib.vat.Runner;
 import org.erights.e.meta.java.math.EInt;
+import org.erights.e.develop.exception.ExceptionMgr;
 
 import java.io.IOException;
 
@@ -71,7 +72,17 @@ public class EMatchersNode implements VTableEntry, EStackItem {
      * Just returns this.
      */
     public Script shorten(Object optSelf, String aVerb, int arity) {
-        return this;
+        for (int i = 0; i < myMatchers.length; i++) {
+            EMatcher matcher = myMatchers[i];
+            // Could this one match?
+
+            Script shorter = matcher.shorten(aVerb, arity, this);
+            if (shorter != null)
+                return shorter;     // ==this if we're unsure about a match
+        }
+        String diagnostic = "" + optSelf + "." + aVerb + "/" + arity;
+        NoSuchMethodException nsme = new NoSuchMethodException(diagnostic);
+        throw ExceptionMgr.asSafe(nsme);
     }
 
     /**

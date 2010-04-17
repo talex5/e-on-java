@@ -182,7 +182,7 @@ public abstract class VTable implements Script {
             return optMethod;
         }
         if (null != myOptOtherwise) {
-            return myOptOtherwise;
+            return myOptOtherwise.shorten(optSelf, aVerb, arity);
         }
         String selfStr;
         if (null == optSelf) {

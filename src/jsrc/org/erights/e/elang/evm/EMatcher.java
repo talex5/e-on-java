@@ -31,6 +31,7 @@ import org.erights.e.elib.tables.ConstList;
 import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.util.OneArgFunc;
 import org.erights.e.meta.java.math.EInt;
+import org.erights.e.elib.base.Script;
 
 import java.io.IOException;
 
@@ -45,7 +46,7 @@ import java.io.IOException;
  *
  * @author Mark S. Miller
  */
-public class EMatcher extends ENode {
+public class EMatcher extends ENode implements Script {
 
     static private final long serialVersionUID = -5850612086101187616L;
 
@@ -166,5 +167,53 @@ public class EMatcher extends ENode {
         myPattern.subPrintOn(out, PR_PATTERN);
         out.print(" ");
         myBody.printAsBlockOn(out);
+    }
+
+    /** Would this matcher match a call to aVerb/arity?
+      * If yes, return a script for that (possibly ==ifUnsure).
+      * If not , return null.
+      * If unsure (depends on the arguments), return ifUnsure.
+      */
+    public Script shorten(String aVerb, int arity, Script ifUnsure) {
+        if (myPattern instanceof GuardedPattern) {
+            if (((GuardedPattern) myPattern).getOptGuardExpr() != null) {
+                return ifUnsure;
+            }
+            Class patternClass = myPattern.getClass();
+            if (patternClass == IgnorePattern.class ||
+                patternClass == NounPattern.class ||
+                patternClass == FinalPattern.class) {
+                return this;
+            }
+        } else if (myPattern instanceof ListPattern) {
+            Pattern[] subs = ((ListPattern) myPattern).getSubPatterns();
+            if (subs.length != 2) {
+                return null;
+            }
+            //System.out.println("p: " + subs[0] + ", " + subs[0].getClass());
+        }
+        return ifUnsure;
+    }
+
+    /* Script methods */
+
+    public boolean canHandleR(Object optShortSelf) {
+        return true;    // we never looked at self in the first place, so result is still valid
+    }
+
+    public boolean respondsTo(Object optSelf, String verb, int arity) {
+        throw new RuntimeException("Shouldn't be called");
+    }
+
+    public void protocol(Object optSelf, FlexList mTypes) {
+        throw new RuntimeException("Shouldn't be called");
+    }
+
+    public Object execute(Object optSelf, String verb, Object[] args) {
+        return execute(optSelf, verb, args, null);
+    }
+
+    public Script shorten(Object optSelf, String aVerb, int arity) {
+        return this;
     }
 }
