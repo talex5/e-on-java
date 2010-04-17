@@ -17,11 +17,15 @@ import org.erights.e.elang.evm.GuardedPattern;
 import org.erights.e.elang.evm.MetaContextExpr;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.NounPattern;
+import org.erights.e.elang.evm.IgnorePattern;
 import org.erights.e.elang.evm.ObjectExpr;
 import org.erights.e.elang.evm.Pattern;
 import org.erights.e.elang.evm.SeqExpr;
+import org.erights.e.elang.evm.EscapeExpr;
 import org.erights.e.elang.evm.SlotExpr;
+import org.erights.e.elang.evm.DefineExpr;
 import org.erights.e.elang.evm.LiteralExpr;
+import org.erights.e.elang.evm.LocalFinalNounExpr;
 import org.erights.e.elang.evm.StaticScope;
 import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
@@ -290,29 +294,36 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                                   EExpr body,
                                   Pattern optArgPattern,
                                   EExpr optCatcher) {
+        KernelECopyVisitor t = nest();
+        KernelECopyVisitor catchScope = nest();
+        Pattern xHatch = t.xformPattern(hatch);
+        EExpr xBody = t.xformEExpr(body);
+
         if (hatch instanceof FinalPattern) {
             // TODO this should just match against a quasipattern
             FinalPattern pat = (FinalPattern)hatch;
             if (null == pat.getOptGuardExpr()) {
                 if (null == optArgPattern) {
-                    body = killSillyReturn(pat, body);
+                    xBody = killSillyReturn(pat, xBody);
                 }
-                StaticScope scope = body.staticScope();
+                StaticScope scope = xBody.staticScope();
                 if (!scope.namesUsed().maps(pat.getNoun().getName())) {
                     if (!scope.hasMetaStateExpr()) {
                         // XXX kludge: This fixes just one special case. The
                         // right answer is to expand out MetaStateExpr in
                         // the VerifyVisitor.
-                        return body.welcome(nest());
+                        return xBody;
                     }
                 }
             }
         }
-        return super.visitEscapeExpr(optOriginal,
-                                     hatch,
-                                     body,
-                                     optArgPattern,
-                                     optCatcher);
+
+        return new EscapeExpr(getOptSpan(optOriginal),
+                              xHatch,
+                              xBody,
+                              catchScope.xformPattern(optArgPattern),
+                              catchScope.xformEExpr(optCatcher),
+                              getOptScopeLayout());
     }
 
     /**
@@ -447,6 +458,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                 if (((LiteralExpr) xSubs[i]).getValue() != null) {
                     System.out.println("Warning: constant expression with no effect: " + subs[i] + "\n" + getOptSpan(subs[i]));
                 }
+            } else if (xSubs[i] instanceof LocalFinalNounExpr) {
+                //System.out.println("Warning: constant expression with no effect: " + subs[i] + "\n" + getOptSpan(subs[i]));
             } else {
                 xSubs[j] = xSubs[i];
                 j += 1;
@@ -479,6 +492,36 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         } finally {
             inSlotExpr = false;
         }
+    }
+
+    public Object visitDefineExpr(ENode optOriginal,
+                                  Pattern patt,
+                                  EExpr optEjectorExpr,
+                                  EExpr rValue) {
+        // "def _ [via ...] := value" can be simplified to just "value"
+        // (turns up in for loops where the index isn't used)
+        Pattern xPatt = xformPattern(patt);
+        if (xPatt.getClass() == IgnorePattern.class) {
+            if (((IgnorePattern) xPatt).getOptGuardExpr() == null) {
+                return xformEExpr(rValue);
+            }
+        }
+        // for a simple pattern without a guard, the ejector isn't needed
+        // (turns up often in the for loop expansion)
+        if (xPatt instanceof FinalPattern) {
+            if (((FinalPattern) xPatt).getOptGuardExpr() == null) {
+                return new DefineExpr(getOptSpan(optOriginal),
+                                      xPatt,
+                                      null,
+                                      xformEExpr(rValue),
+                                      getOptScopeLayout());
+            }
+        }
+        return new DefineExpr(getOptSpan(optOriginal),
+                              xPatt,
+                              xformEExpr(optEjectorExpr),
+                              xformEExpr(rValue),
+                              getOptScopeLayout());
     }
 }
  
