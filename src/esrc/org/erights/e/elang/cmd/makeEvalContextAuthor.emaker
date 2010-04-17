@@ -45,6 +45,12 @@ def makeEvalContextAuthor(auths,
                                   auths["metaerr"],
                                   props,
                                   cmdLoop)
+
+        # Expand some LazyEvalSlots to help the compiler
+        # TODO: also in makeSeedVat
+        topScope["require"]
+        topScope["int"]
+
         def evalContext {
             to getTopScope() :Scope {
                 topScope

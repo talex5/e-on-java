@@ -76,15 +76,14 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
     /**
      *
      */
-    ImportLoader() {
+    ImportLoader(Scope safeScope) {
         myAlreadyCompiled =
           FlexMap.fromTypes(String.class, Object.class);
 
         myBeingImported =
           FlexMap.fromTypes(String.class, Ref.class);
 
-        Object[] safePair = ScopeSetup.safeScopePair("root$", this);
-        mySafeScope = (Scope) safePair[1];
+        mySafeScope = safeScope;
     }
 
     /**
@@ -113,7 +112,9 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
      *
      */
     private Object readResolve() throws ObjectStreamException {
-        return new ImportLoader();
+        System.out.println("ImportLoader: FIXME: creating new safeScope!");
+        Object[] safePair = ScopeSetup.safeScopePair("root$");
+        return ((Scope) safePair[1]).get("import__uriGetter");
     }
 
     /**

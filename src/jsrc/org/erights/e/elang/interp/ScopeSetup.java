@@ -93,7 +93,7 @@ public final class ScopeSetup {
 
     static {
         Object[] safePair =
-          safeScopePair("__NonShadowable$", new ImportLoader());
+          safeScopePair("__NonShadowable$");
         NonShadowable = ((ScopeMaker)safePair[0]).getVarNames();
     }
 
@@ -338,15 +338,20 @@ public final class ScopeSetup {
      * to "&lt;import&gt;") with transparent-enough caches. It conveys no
      * substantial authority, and so can be given out freely.
      */
-    static public Scope safeScope(String fqnPrefix) {
-        return (Scope)safeScopePair(fqnPrefix, new ImportLoader())[1];
+    static private Scope safeScope(String fqnPrefix) {
+        return (Scope)safeScopePair(fqnPrefix)[1];
     }
 
     /**
      * Makes a [ScopeMaker,Scope] pair representing a safeScope, with the
      * provided loader as its "&lt;import&gt;".
      */
-    static Object[] safeScopePair(String fqnPrefix, Loader loader) {
+    static Object[] safeScopePair(String fqnPrefix) {
+//        Exception ex = new RuntimeException("safeScopePair");
+//        ex.fillInStackTrace();
+//        System.out.println("NEW safeScopePair in " + Thread.currentThread());
+//        ex.printStackTrace();
+
         // def safeScope
         Object[] promise = Ref.promise();
         Ref safeScopeVow = (Ref)promise[0];
@@ -354,7 +359,8 @@ public final class ScopeSetup {
 
         ScopeMaker sm = safeMakerBase(safeScopeVow).copy();
 
-        sm.init("import__uriGetter", loader);   // not uconstant
+        Object[] importLoaderPair = Ref.promise();
+        sm.init("import__uriGetter", importLoaderPair[0]);   // not uconstant
 
         T.require(fqnPrefix.endsWith(".") || fqnPrefix.endsWith("$"),
                   "fqnPrefix must end with '.' or '$': ",
@@ -364,6 +370,7 @@ public final class ScopeSetup {
 
         Scope safeScope = sm.make(fqnPrefix);
         safeScopeResolver.resolve(safeScope);
+        ((Resolver) importLoaderPair[1]).resolve(new ImportLoader(safeScope));
         Object[] result = {sm, safeScope};
         return result;
     }
@@ -469,7 +476,7 @@ public final class ScopeSetup {
         Ref privScopeVow = (Ref)promise[0];
         Resolver privResolver = (Resolver)promise[1];
 
-        Object[] safePair = safeScopePair(fqnPrefix, new ImportLoader());
+        Object[] safePair = safeScopePair(fqnPrefix);
         ScopeMaker pm = ((ScopeMaker)safePair[0]).copy();
 
         pm.init("file__uriGetter", FileGetter.THE_ONE);
