@@ -48,6 +48,39 @@ import java.io.IOException;
  * @author Mark S. Miller
  */
 public class EMatcher extends ENode implements Script {
+    private static class SuperScript implements Script {
+        private Object myTarget;
+        private Script myScript;
+
+        private SuperScript(Object target, Script script) {
+            myTarget = target;
+            myScript = script;
+        }
+
+        public boolean canHandleR(Object optShortSelf) {
+            return false;
+        }
+
+        public boolean respondsTo(Object optSelf, String verb, int arity) {
+            throw new RuntimeException("Shouldn't be called");
+        }
+
+        public void protocol(Object optSelf, FlexList mTypes) {
+            throw new RuntimeException("Shouldn't be called");
+        }
+
+        public Object execute(Object optSelf, String verb, Object[] args) {
+            return myScript.execute(myTarget, verb, args);
+        }
+
+        public Script shorten(Object optSelf, String aVerb, int arity) {
+            return this;
+        }
+
+        public String toString() {
+            return myScript.toString();
+        }
+    }
 
     static private final long serialVersionUID = -5850612086101187616L;
 
@@ -170,37 +203,35 @@ public class EMatcher extends ENode implements Script {
         myBody.printAsBlockOn(out);
     }
 
-    public Script shortenSuper(NounExpr noun) {
+    /** See if we just forward messages to some object. If so, return it. */
+    private Object optShortenSuper(NounExpr noun) {
         // Optimise the special case (the expansion of super):
         //   match noun { E.callWithPair(super, noun) }
         if (!(myBody instanceof FastCallExpr)) {
-            return this;
+            return null;
         }
 
         FastCallExpr call = (FastCallExpr) myBody;
         Object rcvr = call.getReceiver();
         if (!(rcvr instanceof StaticMaker)) {
-            return this;
+            return null;
         }
         
         String type = ((StaticMaker) rcvr).asType().getFQName();
         if (!type.equals("org.erights.e.elang.interp.E4E")) {
-            return this;
+            return null;
         }
 
         if (!call.getVerb().equals("callWithPair")) {
-            return this;
+            return null;
         }
 
         System.out.println("E.callWithPair!");
 
         EExpr[] args = call.getArgs();
         if (args.length != 2) {
-            return this;
+            return null;
         }
-
-        System.out.println("E.callWithPair: " + args[0].getClass());
-        System.out.println("E.callWithPair: " + args[1].getClass());
 
         if (args[0] instanceof LiteralExpr && args[1] instanceof LocalFinalNounExpr) {
             // super known at compile-time
@@ -208,14 +239,13 @@ public class EMatcher extends ENode implements Script {
             LocalFinalNounExpr theNoun = (LocalFinalNounExpr) args[1];
             if (noun.getName().equals(theNoun.getName())) {
                 // OK, everything matches! Any call to "this" simply forwards to "supr".
-                System.out.println("Forward to " + supr);
+                //System.out.println("Forward to " + supr);
 
-                Script suprScript = ScriptMaker.THE_ONE.instanceScript(supr.getClass());
-                return suprScript;
+                return supr;
             }
         }
 
-        return this;
+        return null;
     }
 
     /** Would this matcher match a call to aVerb/arity?
@@ -233,7 +263,13 @@ public class EMatcher extends ENode implements Script {
                 NounExpr noun = ((FinalPattern) myPattern).getNoun();
 
                 // We certainly match. But maybe we can shorten further by looking in the body...
-                return shortenSuper(noun);
+                Object forward = optShortenSuper(noun);
+                if (forward != null) {
+                    Script suprScript = ScriptMaker.THE_ONE.instanceScript(forward.getClass());
+                    return new SuperScript(forward, suprScript.shorten(null, aVerb, arity));
+                } else {
+                    return this;
+                }
             }
         } else if (myPattern instanceof ListPattern) {
             Pattern[] subs = ((ListPattern) myPattern).getSubPatterns();
