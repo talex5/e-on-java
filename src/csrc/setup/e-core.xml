@@ -9,7 +9,7 @@ E is a scripting language designed for writing secure distributed programs.</des
   <category>Development</category>
   <feed-for interface='http://repo.roscidus.com/e/e-core'/>
   <needs-terminal/>
-  <implementation id="." main="rune" version="0.9.2-post2">
+  <implementation id="." main="rune" version="0.9.2-post3">
     <requires interface="http://repo.roscidus.com/java/openjdk-6-jre">
       <environment insert="bin/" mode="replace" name="RUNE_JRE_BIN"/>
     </requires>
