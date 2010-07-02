@@ -68,7 +68,7 @@ def seedVatAuthor(<unsafe>) :near {
     def makeVat := <unsafe:org.erights.e.elib.vat.makeVat>
     def makeVatSeeder := <unsafe:org.erights.e.elang.interp.makeVatSeeder>
 
-    def surgeon := <elib:serial.makeSurgeon>.withSrcKit("de: ").diverge()
+    def surgeon := <elib:serial.makeSurgeon>.withSrcKit("").diverge()
     surgeon.addLoader(<unsafe:org.erights.e.meta.java.io.makeFileGetter>.getTHE_ONE(), "file__uriGetter")
     surgeon.addLoader(<unsafe>, "unsafe__uriGetter")
 
@@ -117,31 +117,37 @@ def seedVatAuthor(<unsafe>) :near {
                 def eval(privSrc :String, envExtrasStr) {
                     def eParser := <elang:syntax.makeEParser>
                     def runeAuthor := <elang:cmd.runeAuthor>
-                    def auths := runeAuthor.defaultAuths(<unsafe>)
                     def makeScopeSetup :=
                       <unsafe:org.erights.e.elang.interp.makeScopeSetup>
 
+                    def makeTextWriter := <elib:oldeio.makeTextWriter>
+                    def <ue> := <unsafe:org.erights.e.*>
+                    def makePrintStreamWriter :=
+                      <ue:develop.exception.makePrintStreamWriter>
+
+                    def metain := makePrintStreamWriter.stdin()
+                    def metaout := makeTextWriter(makePrintStreamWriter.stdout(), true)
+                    def metaerr := makeTextWriter(makePrintStreamWriter.stderr(), true)
+
+
                     def privScope := makeScopeSetup.privileged("__main$$",
-                                                               auths["metain"],
-                                                               auths["metaout"],
-                                                               auths["metaerr"],
+                                                               metain,
+                                                               metaout,
+                                                               metaerr,
                                                                interp.getProps(),
                                                                interp,
                                                                null)
 
-                    def surgeon := <elib:serial.makeSurgeon>.withSrcKit("de: ").diverge()
-                    surgeon.addLoader(<file>, "file__uriGetter")
-                    surgeon.addLoader(<unsafe>, "unsafe__uriGetter")
-                    surgeon.addFromSafeScope()
-
-                    def envExtras := surgeon.unserialize(envExtrasStr)
+                    def envExtras := eParser(envExtrasStr).eval(privScope)
 
                     def privExpr := eParser(privSrc)
                     return privExpr.eval(privScope.with(envExtras))
                 }
             `
-            def auths := runeAuthor.defaultAuths(<unsafe>)
-            def eval := vat.seed(makeVatSeeder(bootstrapCode, auths["defaultProps"]))
+            def sysProps := <unsafe:java.lang.makeSystem>.getProperties()
+            def defaultProps := <elib:tables.makeConstMap>.fromProperties(sysProps)
+
+            def eval := vat.seed(makeVatSeeder(bootstrapCode, defaultProps))
             return eval <- (privSrc, envExtrasStr)
         }
 
