@@ -78,7 +78,7 @@ public class Traceln implements EPrintable {
                 if ('\n' == c) {
                     buf.append("\n> ");
                     lineStart = buf.length();
-                } else if (LIMIT <= buf.length() - lineStart) {
+                } else if (false && LIMIT <= buf.length() - lineStart) {
                     buf.append("\\\n> ");
                     lineStart = buf.length();
                     StringHelper.escapedInto(c, buf);
