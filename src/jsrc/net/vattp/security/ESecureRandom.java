@@ -226,7 +226,7 @@ public class ESecureRandom extends SecureRandom {
         }
         int cursor = 0;
 
-        if (MIN_ENTROPY > myAvailableEntropy) { // Need to gather entropy
+        if (false && MIN_ENTROPY > myAvailableEntropy) { // Need to gather entropy
             long genSeedTime = 0;
             long waitSeedTime = 0;
             int seedLength = 0;
