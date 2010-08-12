@@ -66,7 +66,7 @@ public class EEnv implements EIteratable {
 
     private final ScopeLayout myScopeLayout;
 
-    private final EvalContext myEvalContext;
+    private final Slot[] myOuters;
 
     /**
      * In slotted form, each association is
@@ -183,15 +183,12 @@ public class EEnv implements EIteratable {
             int newLen = StrictMath.min(outerCount, outers.length);
             System.arraycopy(outers, 0, newOuters, 0, newLen);
         }
-        return new EEnv(scopeLayout, EvalContext.make(0, newOuters));
+        return new EEnv(scopeLayout, newOuters);
     }
 
-    /**
-     *
-     */
-    public EEnv(ScopeLayout scopeLayout, EvalContext evalContext) {
+    private EEnv(ScopeLayout scopeLayout, Slot[] outers) {
         myScopeLayout = scopeLayout;
-        myEvalContext = evalContext;
+        myOuters = outers;
     }
 
     /**
@@ -203,10 +200,9 @@ public class EEnv implements EIteratable {
      */
     public EEnv update(ScopeLayout newScopeLayout) {
         int outerCount = newScopeLayout.getOuterCount();
-        Slot[] outers = myEvalContext.outers();
+        Slot[] outers = myOuters;
         if (-1 == outerCount || outers.length == outerCount) {
-            EvalContext newEvalContext = myEvalContext;
-            return new EEnv(newScopeLayout, newEvalContext);
+            return new EEnv(newScopeLayout, myOuters);
         } else {
             // XXX need to refactor
             return outer(newScopeLayout, outers);
@@ -215,7 +211,7 @@ public class EEnv implements EIteratable {
 
     public Scope asScope() {
         // XXX: copy?
-        return new Scope(myScopeLayout, myEvalContext);
+        return new Scope(myScopeLayout, EvalContext.make(0, myOuters));
     }
 
     /**
@@ -242,14 +238,6 @@ public class EEnv implements EIteratable {
     /**
      *
      */
-    public EvalContext newContext(int numLocals) {
-        // XXX should this eliminate all the current locals?
-        return myEvalContext.extended(numLocals);
-    }
-
-    /**
-     *
-     */
     public boolean maps(String varName) {
         return myScopeLayout.contains(varName);
     }
@@ -258,7 +246,8 @@ public class EEnv implements EIteratable {
      *
      */
     public Slot getSlot(String varName) {
-        return myScopeLayout.getNoun(varName).getSlot(myEvalContext);
+        OuterNounExpr noun = (OuterNounExpr) myScopeLayout.getNoun(varName);
+        return myOuters[noun.getIndex()];
     }
 
     /**
@@ -294,7 +283,7 @@ public class EEnv implements EIteratable {
      * A new EEnv object just like this one, but with the given prefix.
      */
     public EEnv withPrefix(String fqnPrefix) {
-        return new EEnv(myScopeLayout.withPrefix(fqnPrefix), myEvalContext);
+        return new EEnv(myScopeLayout.withPrefix(fqnPrefix), myOuters);
     }
 
     /**
