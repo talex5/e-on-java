@@ -7,7 +7,7 @@ http://www.opensource.org/licenses/mit-license.html
 */
 
 import org.erights.e.elang.evm.EExpr;
-import org.erights.e.elang.scope.Scope;
+import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elang.syntax.EParser;
 import org.erights.e.elib.tables.ConstMap;
 import org.erights.e.elib.tables.Twine;
@@ -34,7 +34,7 @@ public class VatSeeder {
     public Object run() {
         final EExpr privExpr = (EExpr) EParser.run(myPrivSrc);
 
-        Scope privScope = ScopeSetup.privileged("__main$",
+        EEnv privScope = ScopeSetup.privileged("__main$",
                 null,
                 null,
                 null,

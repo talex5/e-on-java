@@ -21,6 +21,7 @@ Contributor(s): ______________________________________.
 
 import org.erights.e.develop.assertion.T;
 import org.erights.e.elang.scope.EvalContext;
+import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
 import org.erights.e.elang.visitors.BindFramesVisitor;
@@ -104,9 +105,9 @@ public abstract class EExpr extends ENode {
         return result;
     }
 
-    public CompiledE compile(Scope scope) {
-        Object[] result = transform(this, scope.getScopeLayout());
-        Scope transformedScope = scope.update((ScopeLayout) result[1]);
+    public CompiledE compile(EEnv env) {
+        Object[] result = transform(this, env.getScopeLayout());
+        Scope transformedScope = env.update((ScopeLayout) result[1]).asScope();
         int maxLocals = ((Integer)result[2]).intValue();
         return new CompiledE(
                 (EExpr) result[0],
@@ -135,8 +136,8 @@ public abstract class EExpr extends ENode {
     /**
      * Used to evaluate this expression in a scope to a value.
      */
-    public Object eval(Scope scope) {
-        return evalToPair(scope)[0];
+    public Object eval(EEnv env) {
+        return evalToPair(env.asScope())[0];
     }
 
     /**

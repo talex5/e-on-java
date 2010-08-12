@@ -21,7 +21,7 @@ Contributor(s): ______________________________________.
 
 import org.erights.e.develop.assertion.T;
 import org.erights.e.elang.evm.BaseEvaluator;
-import org.erights.e.elang.scope.Scope;
+import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elang.syntax.ENodeBuilder;
 import org.erights.e.elang.syntax.EParser;
 import org.erights.e.elib.base.ClassDesc;
@@ -341,12 +341,12 @@ public final class ScopeSetup {
      * to "&lt;import&gt;") with transparent-enough caches. It conveys no
      * substantial authority, and so can be given out freely.
      */
-    static public Scope safeScope(String fqnPrefix) {
-        return (Scope)safeScopePair(fqnPrefix, new ImportLoader())[1];
+    static public EEnv safeScope(String fqnPrefix) {
+        return (EEnv)safeScopePair(fqnPrefix, new ImportLoader())[1];
     }
 
     /**
-     * Makes a [ScopeMaker,Scope] pair representing a safeScope, with the
+     * Makes a [ScopeMaker,EEnv] pair representing a safeScope, with the
      * provided loader as its "&lt;import&gt;".
      */
     static Object[] safeScopePair(String fqnPrefix, Loader loader) {
@@ -365,7 +365,7 @@ public final class ScopeSetup {
         String fqName = fqnPrefix.substring(0, fqnPrefix.length() - 1);
         sm.init("traceln", new Traceln(fqName));
 
-        Scope safeScope = sm.make(fqnPrefix);
+        EEnv safeScope = sm.make(fqnPrefix);
         safeScopeResolver.resolve(safeScope);
         Object[] result = {sm, safeScope};
         return result;
@@ -375,7 +375,7 @@ public final class ScopeSetup {
     /**
      * @deprecated Use privileged/5
      */
-    static public Scope privileged(String fqnPrefix,
+    static public EEnv privileged(String fqnPrefix,
                                    TextWriter altout,
                                    TextWriter alterr,
                                    CmdLoop interp) {
@@ -394,7 +394,7 @@ public final class ScopeSetup {
      * This scope contains the root magic powers, so should only be given to
      * fully trusted entities.
      */
-    static public Scope privileged(String fqnPrefix,
+    static public EEnv privileged(String fqnPrefix,
                                    Ref altin,
                                    TextWriter altout,
                                    TextWriter alterr,
@@ -411,7 +411,7 @@ public final class ScopeSetup {
     /**
      * @deprecated Use privileged/7
      */
-    static public Scope privileged(String fqnPrefix,
+    static public EEnv privileged(String fqnPrefix,
                                    TextWriter altout,
                                    TextWriter alterr,
                                    ConstMap props,
@@ -432,7 +432,7 @@ public final class ScopeSetup {
      *
      * @param optVat If null, uses the current vat.
      */
-    static public Scope privileged(String fqnPrefix,
+    static public EEnv privileged(String fqnPrefix,
                                    Ref altin,
                                    TextWriter altout,
                                    TextWriter alterr,
@@ -579,7 +579,7 @@ public final class ScopeSetup {
                   "    timer,\n" + "    introducer,\n" + "    makeSturdyRef)");
 
         pm.init("privilegedScope", privScopeVow);
-        Scope privScope = pm.make(fqnPrefix);
+        EEnv privScope = pm.make(fqnPrefix);
         privResolver.resolve(privScope);
         return privScope;
     }

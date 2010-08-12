@@ -7,7 +7,7 @@ pragma.syntax("0.9")
 
 def argParser := <import:org.erights.e.tools.args.argParser>
 
-def Scope := <type:org.erights.e.elang.scope.Scope>
+def EEnv := <type:org.erights.e.elang.scope.EEnv>
 def StringBuffer := <type:java.lang.StringBuffer>
 def BufferedReader := <type:java.io.BufferedReader>
 

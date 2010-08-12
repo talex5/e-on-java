@@ -8,7 +8,7 @@ import org.erights.e.develop.exception.ExceptionMgr;
 import org.erights.e.develop.exception.PrintStreamWriter;
 import org.erights.e.develop.exception.ThrowableSugar;
 import org.erights.e.develop.trace.TraceController;
-import org.erights.e.elang.scope.Scope;
+import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elib.debug.Profiler;
 import org.erights.e.elib.oldeio.TextWriter;
 import org.erights.e.elib.prim.E;
@@ -325,7 +325,7 @@ public class Rune {
             ConstMap props = ConstMap.fromProperties(sysProps);
 
             Vat startVat = Vat.make("headless", "start");
-            final Scope priv = ScopeSetup.privileged("__main$",
+            final EEnv priv = ScopeSetup.privileged("__main$",
                                                      Ref.broken(E.asRTE(
                                                        "XXX No stdin 4")),
                                                      outs,

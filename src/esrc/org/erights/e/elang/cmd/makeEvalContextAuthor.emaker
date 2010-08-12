@@ -32,7 +32,7 @@ def makeEvalContextAuthor(auths,
                                       cmdLoop,
                                       replVat)
         }
-        return baseScope.with(envExtras)
+        return baseScope.with(envExtras).asScope()
     }
 
     def makeImplicitEvalContext(props, cmdLoop) :near {

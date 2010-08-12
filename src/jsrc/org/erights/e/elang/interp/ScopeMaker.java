@@ -7,7 +7,7 @@ import org.erights.e.elang.evm.FinalPattern;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.NounPattern;
 import org.erights.e.elang.evm.OuterNounExpr;
-import org.erights.e.elang.scope.Scope;
+import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elang.scope.ScopeLayout;
 import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elib.slot.RuinedSlot;
@@ -18,7 +18,7 @@ import org.erights.e.elib.tables.FlexMap;
 import org.erights.e.elib.tables.Twine;
 
 /**
- * Used to make {@link Scope Scope}s.
+ * Used to make {@link EEnv EEnv}s.
  * <p/>
  * Note that you can use a ScopeMaker to make scopes containing unshadowable
  * names. This is how the safeScope itself is built.
@@ -81,12 +81,12 @@ class ScopeMaker {
     /**
      *
      */
-    public Scope make(String fqnPrefix) {
+    public EEnv make(String fqnPrefix) {
         ScopeLayout layout =
           ScopeLayout.make(myOuters.size(), mySynEnv.snapshot(), fqnPrefix);
         //int outerSpace = outerCount + ScopeSetup.OUTER_SPACE;
         Slot[] outers = (Slot[])myOuters.getArray(Slot.class);
-        return Scope.outer(layout, outers);
+        return EEnv.outer(layout, outers);
     }
 
     /**

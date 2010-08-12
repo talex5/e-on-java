@@ -24,7 +24,7 @@ import org.erights.e.develop.exception.EBacktraceException;
 import org.erights.e.develop.trace.Trace;
 import org.erights.e.elang.evm.CompiledE;
 import org.erights.e.elang.evm.EExpr;
-import org.erights.e.elang.scope.Scope;
+import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elang.syntax.EParser;
 import org.erights.e.elib.base.ClassDesc;
 import org.erights.e.elib.base.ValueThunk;
@@ -71,7 +71,7 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
     private final transient FlexMap myBeingImported;
 
     private transient Thread myOptThread;
-    private transient Scope mySafeScope;
+    private transient EEnv mySafeScope;
 
     /**
      *
@@ -84,7 +84,7 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
           FlexMap.fromTypes(String.class, Ref.class);
 
         Object[] safePair = ScopeSetup.safeScopePair("root$", this);
-        mySafeScope = (Scope) safePair[1];
+        mySafeScope = (EEnv) safePair[1];
     }
 
     /**
@@ -206,7 +206,7 @@ class ImportLoader extends BaseLoader implements JOSSPassByConstruction {
             EExpr eExpr = (EExpr)EParser.run(eSource);
             //The fqnPrefix for the loaded defs has this fqName as its outer
             //"class".
-            Scope newSafeScope = mySafeScope.withPrefix(fqName + "$");
+            EEnv newSafeScope = mySafeScope.withPrefix(fqName + "$");
             result = eExpr.compile(newSafeScope);
 
             return result;

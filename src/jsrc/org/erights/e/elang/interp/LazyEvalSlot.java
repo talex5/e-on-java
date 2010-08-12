@@ -22,7 +22,7 @@ Contributor(s): ______________________________________.
 import org.erights.e.develop.assertion.T;
 import org.erights.e.develop.exception.ExceptionMgr;
 import org.erights.e.elang.evm.EExpr;
-import org.erights.e.elang.scope.Scope;
+import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elang.syntax.EParser;
 import org.erights.e.elib.oldeio.TextWriter;
 import org.erights.e.elib.prim.E;
@@ -69,8 +69,8 @@ public class LazyEvalSlot extends BaseSlot {
 
     /**
      * @param scope  The scope in which to evaluate the source text. It's
-     *               declared as an Object rather than Scope so that it can be
-     *               a promise for a Scope. This promise must become fulfilled
+     *               declared as an Object rather than EEnv so that it can be
+     *               a promise for a EEnv. This promise must become fulfilled
      *               before the first get() happens.
      * @param source The source text to be evaluated in the promised scope at
      *               the time of the first get().
@@ -109,7 +109,7 @@ public class LazyEvalSlot extends BaseSlot {
             try {
                 //System.err.println("Lazy eval: " + myOptSource);
                 EExpr eExpr = (EExpr)EParser.run(optSource);
-                Scope scope = (Scope)E.as(optScope, Scope.class);
+                EEnv scope = (EEnv)E.as(optScope, EEnv.class);
                 myOptValue = eExpr.eval(scope.withPrefix("__lazy."));
             } catch (Throwable problem) {
                 myOptValue = optValue;
