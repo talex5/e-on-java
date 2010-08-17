@@ -246,8 +246,13 @@ public class EEnv implements EIteratable {
      *
      */
     public Slot getSlot(String varName) {
-        OuterNounExpr noun = (OuterNounExpr) myScopeLayout.getNoun(varName);
-        return myOuters[noun.getIndex()];
+        NounExpr noun = myScopeLayout.getNoun(varName);
+        if (noun instanceof OuterNounExpr) {
+            return myOuters[((OuterNounExpr) noun).getIndex()];
+        } else {
+            // Must be a LiteralSlotNounExpr or a LiteralNounExpr
+            return noun.getSlot(null);
+        }
     }
 
     /**

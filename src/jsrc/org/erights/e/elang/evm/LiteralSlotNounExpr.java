@@ -29,9 +29,7 @@ import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.util.AlreadyDefinedException;
 
 /**
- * XXX This is probably not really DeepPassByCopy, in which case we need to
- * consider whether this should exist at all.
- *
+ * These only occur in transformed E.
  * @author E. Dean Tribble
  */
 public class LiteralSlotNounExpr extends TopNounExpr {
@@ -44,7 +42,7 @@ public class LiteralSlotNounExpr extends TopNounExpr {
     private final Slot mySlot;
 
     /**
-     *
+     * Constructor.
      */
     public LiteralSlotNounExpr(SourceSpan optSpan,
                                String name,
@@ -52,10 +50,6 @@ public class LiteralSlotNounExpr extends TopNounExpr {
                                ScopeLayout optScopeLayout) {
         super(optSpan, name, optScopeLayout);
         mySlot = slot;
-        // XXX This requirement will always fail
-        T.require(Ref.isDeepPassByCopy(mySlot),
-                  "Must be DeepPassByCopy: ",
-                  mySlot);
     }
 
     /**

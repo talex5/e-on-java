@@ -32,8 +32,7 @@ import org.erights.e.elib.util.AlreadyDefinedException;
 /**
  * A noun-expr for compile-time literals, particularly universal constants.
  * <p/>
- * XXX This is probably not really DeepPassByCopy, in which case we need to
- * consider whether this should exist at all.
+ * These only occur in transformed E.
  *
  * @author E. Dean Tribble
  */
@@ -44,6 +43,9 @@ public class LiteralNounExpr extends TopNounExpr {
     private final Object myValue;
 
     /**
+     * Constructor.
+     * Value must be DeepPassByCopy, but we don't check this.
+     *
      * @param optSpan
      * @param name
      * @param value
@@ -55,10 +57,6 @@ public class LiteralNounExpr extends TopNounExpr {
                            ScopeLayout optScopeLayout) {
         super(optSpan, name, optScopeLayout);
         myValue = value;
-        // XXX This requirement will usually fail
-        T.require(Ref.isDeepPassByCopy(myValue),
-                  "Must be DeepPassByCopy: ",
-                  myValue);
     }
 
     /**

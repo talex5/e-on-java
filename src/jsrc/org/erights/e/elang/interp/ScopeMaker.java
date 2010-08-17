@@ -4,6 +4,8 @@ package org.erights.e.elang.interp;
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
 import org.erights.e.elang.evm.FinalPattern;
+import org.erights.e.elang.evm.LiteralNounExpr;
+import org.erights.e.elang.evm.LiteralSlotNounExpr;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.NounPattern;
 import org.erights.e.elang.evm.OuterNounExpr;
@@ -94,9 +96,8 @@ class ScopeMaker {
      * code.
      */
     public void comp(String name, Object value) {
-        // XXX Optimization turned off until we reconcile with DeepPassByCopy
-//        bind(name, new LiteralNounExpr(null, name, value, null));
-        init(name, value);
+        bind(name, new LiteralNounExpr(null, name, value, null));
+//        init(name, value);
     }
 
     /**
@@ -104,10 +105,9 @@ class ScopeMaker {
      * transformed code.
      */
     public void comp(String name, Object scope, String srcstr) {
-        // XXX Optimization turned off until we reconcile with DeepPassByCopy
-//        Slot slot = new LazyEvalSlot(scope, Twine.fromString(srcstr));
-//        bind(name, new LiteralSlotNounExpr(null, name, slot, null));
-        init(name, scope, srcstr);
+        Slot slot = new LazyEvalSlot(scope, Twine.fromString(srcstr));
+        bind(name, new LiteralSlotNounExpr(null, name, slot, null));
+//        init(name, scope, srcstr);
     }
 
     /**
