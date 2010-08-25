@@ -156,65 +156,10 @@ public class EEnv implements EIteratable {
             }
         });
         return new EEnv(outers.snapshot(), fqnPrefix);
-
-        /*
-        final FlexList outersList = FlexList.fromType(Slot.class, len);
-        final FlexMap synEnv =
-          FlexMap.fromTypes(String.class, NounPattern.class, len);
-        state.iterate(new AssocFunc() {
-            public void run(Object key, Object value) {
-                String name = (String)key;
-                String varName;
-                Slot slot;
-                if (name.startsWith("&")) {
-                    varName = name.substring(1);
-                    slot = (Slot)SlotGuard.coerce(value, null);
-                } else {
-                    varName = name;
-                    slot = new FinalSlot(value);
-                }
-                int i = outersList.size();
-                outersList.push(slot);
-                NounExpr nounExpr = new OuterNounExpr(null, varName, i, null);
-                NounPattern patt;
-                if (name.startsWith("&")) {
-                    patt = new SlotPattern(null, nounExpr, null, true, null);
-                } else {
-                    patt = new FinalPattern(null, nounExpr, null, true, null);
-                }
-                synEnv.put(varName, patt, true);
-            }
-        });
-        ScopeLayout layout =
-          ScopeLayout.make(len, synEnv.snapshot(), fqnPrefix);
-        //int outerSpace = outerCount + ScopeSetup.OUTER_SPACE;
-        Slot[] outers = (Slot[])outersList.getArray(Slot.class);
-        return outer(layout, outers);
-        */
     }
 
     public Scope asScope() {
-        final FlexMap synEnv = ConstMap.EmptyMap.diverge();
-
-        myOuters.iterate(new AssocFunc() {
-            public void run(Object key, Object value) {
-                String varName = (String) key;
-                Slot slot = (Slot) value;
-
-                NounExpr nounExpr = new LiteralSlotNounExpr(null, varName, slot, null);
-                NounPattern pattern;
-                if (slot instanceof FinalSlot) {
-                    pattern = new FinalPattern(null, nounExpr, null, true, null);
-                } else {
-                    pattern = new SlotPattern(null, nounExpr, null, true, null);
-                }
-                synEnv.put(varName, pattern, true);
-            }
-        });
-
-        ScopeLayout layout = ScopeLayout.make(0, synEnv.snapshot(), myFqnPrefix);
-
-        return new Scope(layout, EvalContext.make(0, new Slot[] {}));
+        return new Scope(new ScopeLayoutEnv(this), EvalContext.make(0, new Slot[] {}));
     }
 
     /**
@@ -370,9 +315,9 @@ public class EEnv implements EIteratable {
     }
 
     public EEnv withSlot(String slotName, Slot slot) {
-        // XXX Horribly inefficient for now
-        ConstMap state = getState();
-        return fromState(state.with(slotName, slot), getFQNPrefix());
+        // XXX Horribly inefficient
+        T.require(slotName.startsWith("&"), "slotName must start with &");
+        return new EEnv(myOuters.with(slotName.substring(1), slot), myFqnPrefix);
     }
 
     /** Create a new scope based on this one and extended with the given mappings.
@@ -384,17 +329,17 @@ public class EEnv implements EIteratable {
     public EEnv with(ConstMap envExtra) {
         final HashSet seen = new HashSet();
 
-        final FlexMap state = getState().diverge();
+        final FlexMap state = myOuters.diverge();
         envExtra.iterate(new AssocFunc() {
             public void run(Object key, Object value) {
                 String name = (String)key;
                 String slotName;
                 Slot slot;
                 if (name.startsWith("&")) {
-                    slotName = name;
+                    slotName = name.substring(1);
                     slot = (Slot)SlotGuard.coerce(value, null);
                 } else {
-                    slotName = "&" + name;
+                    slotName = name;
                     slot = new FinalSlot(value);
                 }
                 if (seen.contains(slotName)) {
@@ -404,6 +349,11 @@ public class EEnv implements EIteratable {
                 state.put(slotName, slot);
             }
         });
-        return fromState(state.snapshot(), getFQNPrefix());
+        return new EEnv(state.snapshot(), myFqnPrefix);
+    }
+
+    /** A map from names to Slots. */
+    public ConstMap getSlots() {
+        return myOuters;
     }
 }

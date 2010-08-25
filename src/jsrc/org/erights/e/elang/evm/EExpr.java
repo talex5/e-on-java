@@ -24,6 +24,7 @@ import org.erights.e.elang.scope.EvalContext;
 import org.erights.e.elang.scope.EEnv;
 import org.erights.e.elang.scope.Scope;
 import org.erights.e.elang.scope.ScopeLayout;
+import org.erights.e.elang.scope.ScopeLayoutEnv;
 import org.erights.e.elang.visitors.BindFramesVisitor;
 import org.erights.e.elang.visitors.SubstVisitor;
 import org.erights.e.elang.visitors.VerifyEVisitor;
@@ -106,10 +107,8 @@ public abstract class EExpr extends ENode {
     }
 
     public CompiledE compile(EEnv env) {
-        // TODO: simplify
+        Object[] result = transform(this, new ScopeLayoutEnv(env));
         Scope outerScope = env.asScope();
-
-        Object[] result = transform(this, outerScope.getScopeLayout());
         Scope transformedScope = outerScope.update((ScopeLayout) result[1]);
         int maxLocals = ((Integer)result[2]).intValue();
         return new CompiledE(
