@@ -31,64 +31,39 @@ class ScopeMaker {
 
     static private final int DEFAULT_SIZE = 50;
 
-    /**
-     * A list of slots to be accessed by indexing into the outer scope.
-     * <p/>
-     * These are the ones defined by {@link #init(String,Object) init/2},
-     * {@link #init(String,Object,String) init/3}, {@link #initSlot}, or {@link
-     * #ruin}.
-     */
-    private final FlexList myOuters;
+    private final FlexMap myOuters;
 
-    /**
-     * All the association are in
-     * <pre>    varName =&gt; {@link NounPattern}</pre>
-     * form.
-     */
-    private final FlexMap mySynEnv;
-
-    /**
-     *
-     */
     ScopeMaker() {
-        this(FlexList.fromType(Slot.class, DEFAULT_SIZE),
-             FlexMap.fromTypes(String.class, NounPattern.class, DEFAULT_SIZE));
+        this(FlexMap.fromTypes(String.class, Slot.class, DEFAULT_SIZE));
     }
 
     /**
      * @param synEnv Must be a map in which each association is
-     *               <pre>    varName =&gt; {@link NounPattern}</pre>
+     *               <pre>    varName =&gt; {@link Slot}</pre>
      */
-    private ScopeMaker(FlexList outers, FlexMap synEnv) {
+    private ScopeMaker(FlexMap outers) {
         myOuters = outers;
-        mySynEnv = synEnv;
     }
 
     /**
      *
      */
     public ScopeMaker copy() {
-        return new ScopeMaker(myOuters.diverge(Slot.class),
-                              mySynEnv.diverge(String.class,
-                                               NounPattern.class));
+        return new ScopeMaker(myOuters.diverge(String.class, Slot.class));
     }
 
     /**
      *
      */
     public ConstSet getVarNames() {
-        return mySynEnv.domain().snapshot();
+        return (ConstSet) myOuters.snapshot().domain();
     }
 
     /**
      *
      */
     public EEnv make(String fqnPrefix) {
-        ScopeLayout layout =
-          ScopeLayout.make(myOuters.size(), mySynEnv.snapshot(), fqnPrefix);
-        //int outerSpace = outerCount + ScopeSetup.OUTER_SPACE;
-        Slot[] outers = (Slot[])myOuters.getArray(Slot.class);
-        return EEnv.outer(layout, outers);
+        return new EEnv(myOuters.snapshot(), fqnPrefix);
     }
 
     /**
@@ -96,7 +71,7 @@ class ScopeMaker {
      * code.
      */
     public void comp(String name, Object value) {
-        bind(name, new LiteralNounExpr(null, name, value, null));
+        myOuters.put(name, new FinalSlot(value));
 //        init(name, value);
     }
 
@@ -106,7 +81,7 @@ class ScopeMaker {
      */
     public void comp(String name, Object scope, String srcstr) {
         Slot slot = new LazyEvalSlot(scope, Twine.fromString(srcstr));
-        bind(name, new LiteralSlotNounExpr(null, name, slot, null));
+        myOuters.put(name, slot);
 //        init(name, scope, srcstr);
     }
 
@@ -137,17 +112,6 @@ class ScopeMaker {
      *
      */
     public void initSlot(String name, Slot slot) {
-        int i = myOuters.size();
-        myOuters.push(slot);
-        bind(name, new OuterNounExpr(null, name, i, null));
-    }
-
-    /**
-     *
-     */
-    private void bind(String varName, NounExpr nounExpr) {
-        mySynEnv.put(varName,
-                     new FinalPattern(null, nounExpr, null, true, null),
-                     true);
+        myOuters.put(name, slot);
     }
 }

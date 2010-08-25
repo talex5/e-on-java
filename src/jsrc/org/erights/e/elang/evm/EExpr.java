@@ -106,8 +106,11 @@ public abstract class EExpr extends ENode {
     }
 
     public CompiledE compile(EEnv env) {
-        Object[] result = transform(this, env.getScopeLayout());
-        Scope transformedScope = env.update((ScopeLayout) result[1]).asScope();
+        // TODO: simplify
+        Scope outerScope = env.asScope();
+
+        Object[] result = transform(this, outerScope.getScopeLayout());
+        Scope transformedScope = outerScope.update((ScopeLayout) result[1]);
         int maxLocals = ((Integer)result[2]).intValue();
         return new CompiledE(
                 (EExpr) result[0],

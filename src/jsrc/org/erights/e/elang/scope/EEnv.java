@@ -23,6 +23,7 @@ import org.erights.e.develop.assertion.T;
 import org.erights.e.develop.exception.ExceptionMgr;
 import org.erights.e.develop.format.StringHelper;
 import org.erights.e.elang.evm.FinalPattern;
+import org.erights.e.elang.evm.LiteralSlotNounExpr;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.NounPattern;
 import org.erights.e.elang.evm.OuterNounExpr;
@@ -31,11 +32,13 @@ import org.erights.e.elang.interp.LazyEvalSlot;
 import org.erights.e.elang.interp.ScopeSetup;
 import org.erights.e.elib.base.ClassDesc;
 import org.erights.e.elib.base.Thunk;
+import org.erights.e.elib.base.ValueThunk;
 import org.erights.e.elib.oldeio.TextWriter;
 import org.erights.e.elib.oldeio.UnQuote;
 import org.erights.e.elib.prim.E;
 import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elib.slot.Guard;
+import org.erights.e.elib.slot.MapGuard;
 import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.tables.AssocFunc;
 import org.erights.e.elib.tables.ConstMap;
@@ -63,10 +66,20 @@ import java.io.StringWriter;
 public class EEnv implements EIteratable {
 
     static private final Guard SlotGuard = ClassDesc.make(Slot.class);
+    static private final Guard StringGuard = ClassDesc.make(String.class);
 
-    private final ScopeLayout myScopeLayout;
+    private final ConstMap myOuters;
+    private final String myFqnPrefix;
 
-    private final Slot[] myOuters;
+    /** Constructor.
+      * @param outers a map from names (without a leading &amp;) to Slots
+      */
+    public EEnv(ConstMap outers, String fqnPrefix) {
+        MapGuard outersGuard = MapGuard.THE_BASE.get(StringGuard, SlotGuard);
+
+        this.myOuters = (ConstMap) outersGuard.coerce(outers, null);
+        this.myFqnPrefix = fqnPrefix;
+    }
 
     /**
      * In slotted form, each association is
@@ -122,11 +135,29 @@ public class EEnv implements EIteratable {
     }
 
     /**
-     *
+     * Like the constructor, except that only names starting with &amp; are slots.
+     * The rest get wrapped in a FinalSlot.
      */
     static public EEnv fromState(ConstMap state, String fqnPrefix) {
         //implementation should be a specialized form of ScopeMaker
         int len = state.size();
+
+        final FlexMap outers = FlexMap.fromTypes(String.class, Slot.class);
+        state.iterate(new AssocFunc() {
+            public void run(Object key, Object value) {
+                String name = (String)key;
+                String varName;
+                Slot slot;
+                if (name.startsWith("&")) {
+                    outers.put(name.substring(1), value);
+                } else {
+                    outers.put(name, new FinalSlot(value));
+                }
+            }
+        });
+        return new EEnv(outers.snapshot(), fqnPrefix);
+
+        /*
         final FlexList outersList = FlexList.fromType(Slot.class, len);
         final FlexMap synEnv =
           FlexMap.fromTypes(String.class, NounPattern.class, len);
@@ -159,100 +190,52 @@ public class EEnv implements EIteratable {
         //int outerSpace = outerCount + ScopeSetup.OUTER_SPACE;
         Slot[] outers = (Slot[])outersList.getArray(Slot.class);
         return outer(layout, outers);
-    }
-
-    /**
-     *
-     */
-    static public EEnv outer(ScopeLayout scopeLayout, Slot[] outers) {
-        int outerCount = scopeLayout.getOuterCount();
-        Slot[] newOuters;
-        if (outerCount == outers.length) {
-            newOuters = outers;
-        } else {
-//            int len = myOuters.length;
-//            if (index >= len) {
-//                int newLen = StrictMath.max(len + 32, index + 1);
-//                Slot[] newOuters = new Slot[newLen];
-//                System.arraycopy(myOuters, 0, newOuters, 0, len);
-//                myOuters = newOuters;
-//            }
-//            myOuters[index] = value;
-
-            newOuters = new Slot[outerCount];
-            int newLen = StrictMath.min(outerCount, outers.length);
-            System.arraycopy(outers, 0, newOuters, 0, newLen);
-        }
-        return new EEnv(scopeLayout, newOuters);
-    }
-
-    private EEnv(ScopeLayout scopeLayout, Slot[] outers) {
-        myScopeLayout = scopeLayout;
-        myOuters = outers;
-    }
-
-    /**
-     * Returns a new EEnv like the current one, but with the new ScopeLayout,
-     * which must be an "extension" of the current one.
-     * <p/>
-     * XXX Security Alert: It is assumed, rather than enforced, that the new
-     * ScopeLayout is an extension of the current one.
-     */
-    public EEnv update(ScopeLayout newScopeLayout) {
-        int outerCount = newScopeLayout.getOuterCount();
-        Slot[] outers = myOuters;
-        if (-1 == outerCount || outers.length == outerCount) {
-            return new EEnv(newScopeLayout, myOuters);
-        } else {
-            // XXX need to refactor
-            return outer(newScopeLayout, outers);
-        }
+        */
     }
 
     public Scope asScope() {
-        // XXX: copy?
-        return new Scope(myScopeLayout, EvalContext.make(0, myOuters));
-    }
+        final FlexMap synEnv = ConstMap.EmptyMap.diverge();
 
-    /**
-     *
-     */
-    public EEnv nestOuter() {
-        return update(myScopeLayout.nestOuter());
-    }
+        myOuters.iterate(new AssocFunc() {
+            public void run(Object key, Object value) {
+                String varName = (String) key;
+                Slot slot = (Slot) value;
 
-    /**
-     *
-     */
-    public ScopeLayout getScopeLayout() {
-        return myScopeLayout;
+                NounExpr nounExpr = new LiteralSlotNounExpr(null, varName, slot, null);
+                NounPattern pattern;
+                if (slot instanceof FinalSlot) {
+                    pattern = new FinalPattern(null, nounExpr, null, true, null);
+                } else {
+                    pattern = new SlotPattern(null, nounExpr, null, true, null);
+                }
+                synEnv.put(varName, pattern, true);
+            }
+        });
+
+        ScopeLayout layout = ScopeLayout.make(0, synEnv.snapshot(), myFqnPrefix);
+
+        return new Scope(layout, EvalContext.make(0, new Slot[] {}));
     }
 
     /**
      *
      */
     public String getFQNPrefix() {
-        return myScopeLayout.getFQNPrefix();
+        return myFqnPrefix;
     }
 
     /**
      *
      */
     public boolean maps(String varName) {
-        return myScopeLayout.contains(varName);
+        return myOuters.maps(varName);
     }
 
     /**
      *
      */
     public Slot getSlot(String varName) {
-        NounExpr noun = myScopeLayout.getNoun(varName);
-        if (noun instanceof OuterNounExpr) {
-            return myOuters[((OuterNounExpr) noun).getIndex()];
-        } else {
-            // Must be a LiteralSlotNounExpr or a LiteralNounExpr
-            return noun.getSlot(null);
-        }
+        return (Slot) myOuters.get(varName);
     }
 
     /**
@@ -269,10 +252,11 @@ public class EEnv implements EIteratable {
      * return insteadThunk() instead.
      */
     public Object fetch(String varName, Thunk insteadThunk) {
-        if (maps(varName)) {
-            return get(varName);
-        } else {
+        Slot slot = (Slot) myOuters.fetch(varName, ValueThunk.NULL_THUNK);
+        if (slot == null) {
             return insteadThunk.run();
+        } else {
+            return slot.get();
         }
     }
 
@@ -288,25 +272,27 @@ public class EEnv implements EIteratable {
      * A new EEnv object just like this one, but with the given prefix.
      */
     public EEnv withPrefix(String fqnPrefix) {
-        return new EEnv(myScopeLayout.withPrefix(fqnPrefix), myOuters);
+        return new EEnv(myOuters, fqnPrefix);
     }
 
     /**
      * Enumerates <tt>slotName =&gt; Slot</tt> associations, where a
      * <tt>slotName</tt> is <tt>"&amp;"varName</tt>
+     * XXX: with the &amp; bits?
      */
     public void iterate(final AssocFunc func) {
         //noinspection ParameterNameDiffersFromOverriddenParameter
-        myScopeLayout.getVarNameSet().iterate(new AssocFunc() {
-            public void run(Object i, Object name) {
+        myOuters.iterate(new AssocFunc() {
+            public void run(Object name, Object value) {
                 String varName = (String)name;
-                func.run("&" + varName, getSlot(varName));
+                Slot slot = (Slot) value;
+                func.run("&" + varName, slot);
             }
         });
     }
 
     /**
-     *
+     * XXX: with the &amp; bits?
      */
     public ConstMap getState() {
         return ConstMap.fromIteratable(this, true);
