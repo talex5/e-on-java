@@ -72,6 +72,10 @@ public class LiteralSlotNounExpr extends TopNounExpr {
         return mySlot;
     }
 
+    public Slot getOptKnownSlot() {
+        return mySlot;
+    }
+
     /**
      *
      */

@@ -4,7 +4,9 @@ package org.erights.e.elang.visitors;
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
 import org.erights.e.elang.evm.AuditorExprs;
+import org.erights.e.elang.evm.FastCallExpr;
 import org.erights.e.elang.evm.CallExpr;
+import org.erights.e.elang.evm.CompilerFlags;
 import org.erights.e.elang.evm.EExpr;
 import org.erights.e.elang.evm.EMatcher;
 import org.erights.e.elang.evm.EMethod;
@@ -24,6 +26,14 @@ import org.erights.e.elang.scope.StaticContext;
 import org.erights.e.elib.tables.ConstMap;
 import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.tables.FlexMap;
+import org.erights.e.elang.evm.OuterNounExpr;
+import org.erights.e.elib.slot.Slot;
+import org.erights.e.elib.slot.FinalSlot;
+import org.erights.e.elang.scope.EvalContext;
+import org.erights.e.elib.prim.ScriptMaker;
+import org.erights.e.elib.prim.JavaMemberNode;
+import org.erights.e.elib.base.Script;
+import java.lang.reflect.Member;
 
 /**
  * @author E. Dean Tribble
@@ -31,6 +41,8 @@ import org.erights.e.elib.tables.FlexMap;
 public abstract class BindFramesVisitor extends BaseBindVisitor {
 
     final int[] myMaxLocalsCell;
+
+    protected final CompilerFlags myCompilerFlags;
 
     /**
      * A verified and bound Kernel-E tree.
@@ -40,8 +52,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
     /**
      *
      */
-    static public BindFramesVisitor make(ScopeLayout scopeLayout) {
-        return new BindOuterFramesVisitor(scopeLayout);
+    static public BindFramesVisitor make(ScopeLayout scopeLayout, CompilerFlags compilerFlags) {
+        return new BindOuterFramesVisitor(scopeLayout, compilerFlags);
     }
 
     /**
@@ -49,10 +61,12 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
      */
     protected BindFramesVisitor(ScopeLayout bindings,
                                 int[] localsCell,
-                                ObjectExpr optSource) {
+                                ObjectExpr optSource,
+                                CompilerFlags compilerFlags) {
         super(bindings);
         myMaxLocalsCell = localsCell;
         myOptSource = optSource;
+        myCompilerFlags = compilerFlags;
     }
 
     /**
@@ -65,7 +79,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         return new BindNestedFramesVisitor(myLayout.nest(),
                                            0,
                                            new int[1],
-                                           myOptSource);
+                                           myOptSource,
+                                           myCompilerFlags);
     }
 
     /**
@@ -77,7 +92,8 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         return new BindNestedFramesVisitor(inner.nest(),
                                            0,
                                            myMaxLocalsCell,
-                                           myOptSource);
+                                           myOptSource,
+                                           myCompilerFlags);
     }
 
     /**
@@ -313,5 +329,48 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
             }
         }
         return super.visitIfExpr(optOriginal, test, then, els);
+    }
+
+    protected void warn(ENode item, String message) {
+        if (myCompilerFlags.warnings) {
+            System.err.println("WARNING: " + message + "\n" +
+                               "(at " + getOptSpan(item) + ")");
+        }
+    }
+
+    /** If we know the type of the recipient at compile-time, look up the method now.
+     */
+    public Object visitCallExpr(ENode optOriginal,
+                                EExpr recip,
+                                String verb,
+                                EExpr[] args) {
+        EExpr xRecip = xformEExpr(recip);
+
+        Slot optKnownSlot = myCompilerFlags.basicOptimisations ? xRecip.getOptKnownSlot() : null;
+        if (optKnownSlot != null && optKnownSlot instanceof FinalSlot) {
+            Object value = optKnownSlot.get();
+            // XXX: what should we do if we can't find the method?
+            // That means this call will always fail at runtime. But this code may be unreachable. Should
+            // we throw an error or carry on?
+            if (value == null) {
+                warn(optOriginal, "Calling " + verb + " on null");
+            } else {
+                Script script = ScriptMaker.THE_ONE.instanceScript(value.getClass());
+                script = script.shorten(value, verb, args.length);
+                return new FastCallExpr(getOptSpan(optOriginal),
+                                    xRecip,
+                                    verb,
+                                    xformEExprs(args),
+                                    value,
+                                    script,
+                                    getOptScopeLayout());
+            }
+        }
+
+        return new CallExpr(getOptSpan(optOriginal),
+                            xRecip,
+                            verb,
+                            xformEExprs(args),
+                            getOptScopeLayout());
     }
 }

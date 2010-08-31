@@ -4,6 +4,7 @@ package org.erights.e.elang.visitors;
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
 import org.erights.e.develop.assertion.T;
+import org.erights.e.elang.evm.CompilerFlags;
 import org.erights.e.elang.evm.GuardedPattern;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.OuterNounExpr;
@@ -18,8 +19,8 @@ class BindOuterFramesVisitor extends BindFramesVisitor {
     /**
      *
      */
-    BindOuterFramesVisitor(ScopeLayout scopeLayout) {
-        super(scopeLayout, new int[1], null);
+    BindOuterFramesVisitor(ScopeLayout scopeLayout, CompilerFlags compilerFlags) {
+        super(scopeLayout, new int[1], null, compilerFlags);
     }
 
     /**
@@ -29,7 +30,8 @@ class BindOuterFramesVisitor extends BindFramesVisitor {
         return new BindNestedFramesVisitor(myLayout.nest(oName.getOptName()),
                                            0,
                                            myMaxLocalsCell,
-                                           null);
+                                           null,
+                                           myCompilerFlags);
     }
 
     /**
@@ -39,7 +41,8 @@ class BindOuterFramesVisitor extends BindFramesVisitor {
         return new BindNestedFramesVisitor(myLayout.nest(),
                                            0,
                                            myMaxLocalsCell,
-                                           null);
+                                           null,
+                                           myCompilerFlags);
     }
 
     /**

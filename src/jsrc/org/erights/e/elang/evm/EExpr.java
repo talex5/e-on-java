@@ -33,6 +33,7 @@ import org.erights.e.elib.oldeio.TextWriter;
 import org.erights.e.elib.prim.E;
 import org.erights.e.elib.ref.Ref;
 import org.erights.e.elib.serial.DeepPassByCopy;
+import org.erights.e.elib.slot.Slot;
 import org.erights.e.elib.tables.ConstList;
 import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.tables.Memoizer;
@@ -92,12 +93,14 @@ public abstract class EExpr extends ENode {
      *         ScopeLayout, and <li>the number of locals it needs to evaluate.
      *         </ul>
      */
-    static private Object[] transform(EExpr eExpr, ScopeLayout scopeLayout) {
+    static private Object[] transform(EExpr eExpr, ScopeLayout scopeLayout, CompilerFlags compilerFlags) {
+        T.require(compilerFlags != null, "compilerFlags cannot be null");
+
         VerifyEVisitor vev = new VerifyEVisitor(scopeLayout);
         EExpr verifiedExpr = vev.xformEExpr(eExpr);
 
         // Do variable layout and a few simple optimizations.
-        BindFramesVisitor bfv = BindFramesVisitor.make(scopeLayout);
+        BindFramesVisitor bfv = BindFramesVisitor.make(scopeLayout, compilerFlags);
         EExpr realExpr = bfv.xformEExpr(verifiedExpr);
 
         Object[] result = {realExpr,
@@ -107,7 +110,14 @@ public abstract class EExpr extends ENode {
     }
 
     public CompiledE compile(EEnv env) {
-        Object[] result = transform(this, new ScopeLayoutEnv(env));
+        CompilerFlags flags = new CompilerFlags();
+        flags.warnings = true;
+        flags.basicOptimisations = true;
+        return compile(env, flags);
+    }
+
+    public CompiledE compile(EEnv env, CompilerFlags compilerFlags) {
+        Object[] result = transform(this, new ScopeLayoutEnv(env), compilerFlags);
         Scope outerScope = env.asScope();
         Scope transformedScope = outerScope.update((ScopeLayout) result[1]);
         int maxLocals = ((Integer)result[2]).intValue();
@@ -143,12 +153,23 @@ public abstract class EExpr extends ENode {
     }
 
     /**
+     * Return a Slot for the result of evaluating this expression, if known at compile-time.
+     * This is used to enable certain optimisations.
+     * Returns a FinalSlot if the value is known.
+     * Returns null otherwise, but may return other types of Slot in future if partial information
+     * is known (e.g. the type).
+     */
+    public Slot getOptKnownSlot() {
+        return null;
+    }
+
+    /**
      * Used to evaluate this expression in a scope to a pair of a value and a
      * new scope.
      */
     public Object[] evalToPair(Scope scope) {
         ScopeLayout oldLayout = scope.getScopeLayout();
-        Object[] triple = transform(this, oldLayout);
+        Object[] triple = transform(this, oldLayout, new CompilerFlags());
         EExpr realExpr = (EExpr)triple[0];
         Scope newScope = scope.update((ScopeLayout)triple[1]);
         int maxLocals = ((Integer)triple[2]).intValue();

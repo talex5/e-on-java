@@ -3,6 +3,7 @@ package org.erights.e.elang.visitors;
 // Copyright 2002 Combex, Inc. under the terms of the MIT X license
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
+import org.erights.e.elang.evm.CompilerFlags;
 import org.erights.e.elang.evm.GuardedPattern;
 import org.erights.e.elang.evm.LocalFinalNounExpr;
 import org.erights.e.elang.evm.LocalSlotNounExpr;
@@ -24,8 +25,9 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
     BindNestedFramesVisitor(ScopeLayout bindings,
                             int localN,
                             int[] localsCell,
-                            ObjectExpr optSource) {
-        super(bindings, localsCell, optSource);
+                            ObjectExpr optSource,
+                            CompilerFlags compilerFlags) {
+        super(bindings, localsCell, optSource, compilerFlags);
         myNextLocal = localN;
         myOptSource = optSource;
     }
@@ -37,7 +39,8 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
         return new BindNestedFramesVisitor(myLayout.nest(oName.getOptName()),
                                            myNextLocal,
                                            myMaxLocalsCell,
-                                           myOptSource);
+                                           myOptSource,
+                                           myCompilerFlags);
     }
 
     /**
@@ -47,7 +50,8 @@ class BindNestedFramesVisitor extends BindFramesVisitor {
         return new BindNestedFramesVisitor(myLayout.nest(),
                                            myNextLocal,
                                            myMaxLocalsCell,
-                                           myOptSource);
+                                           myOptSource,
+                                           myCompilerFlags);
     }
 
     /**

@@ -116,6 +116,7 @@ public final class SafeJ {
       "org.erights.e.elang.evm.AssignExpr",
       "org.erights.e.elang.evm.CallExpr",
       "org.erights.e.elang.evm.CatchExpr",
+      "org.erights.e.elang.evm.CompilerFlags",
       "org.erights.e.elang.evm.DefineExpr",
       "org.erights.e.elang.evm.EMatcher",
       "org.erights.e.elang.evm.EMethod",
