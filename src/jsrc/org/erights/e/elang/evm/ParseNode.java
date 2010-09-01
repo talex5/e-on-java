@@ -113,6 +113,9 @@ public abstract class ParseNode extends SamenessHashCacher
 
     /**
      * For when we already know specimen isn't null.
+     * This is used to do pattern matching on E code, e.g.
+     * <tt>def e`def @v := 4` := specimen</tt>
+     * Only called on Kernel E, not transformed E.
      */
     protected abstract void subMatchBind(ConstList args,
                                          Object specimen,

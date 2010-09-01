@@ -7,6 +7,7 @@ import org.erights.e.elang.evm.AuditorExprs;
 import org.erights.e.elang.evm.FastCallExpr;
 import org.erights.e.elang.evm.CallExpr;
 import org.erights.e.elang.evm.CompilerFlags;
+import org.erights.e.elang.evm.DefineExpr;
 import org.erights.e.elang.evm.EExpr;
 import org.erights.e.elang.evm.EMatcher;
 import org.erights.e.elang.evm.EMethod;
@@ -15,6 +16,7 @@ import org.erights.e.elang.evm.EScript;
 import org.erights.e.elang.evm.FinalPattern;
 import org.erights.e.elang.evm.GuardedPattern;
 import org.erights.e.elang.evm.LiteralExpr;
+import org.erights.e.elang.evm.LiteralNounExpr;
 import org.erights.e.elang.evm.MetaContextExpr;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.NounPattern;
@@ -426,9 +428,7 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
         for (; i < xSubs.length - 1; i++) {
             Slot optKnownSlot = myCompilerFlags.basicOptimisations ? xSubs[i].getOptKnownSlot() : null;
             if (optKnownSlot != null && optKnownSlot instanceof FinalSlot) {
-                if (optKnownSlot.get() != null) {
-                    warn(subs[i], "constant expression with no effect: " + subs[i]);
-                }
+                // OK
             } else {
                 xSubs[j] = xSubs[i];
                 j += 1;
@@ -449,5 +449,47 @@ public abstract class BindFramesVisitor extends BaseBindVisitor {
                                newSubs,
                                getOptScopeLayout());
         }
+    }
+
+    public Object visitDefineExpr(ENode optOriginal,
+                                  Pattern patt,
+                                  EExpr optEjectorExpr,
+                                  EExpr rValue) {
+        ScopeLayout oldLayout = myLayout;
+
+        Pattern xPatt = xformPattern(patt);
+        EExpr xEjector = xformEExpr(optEjectorExpr);
+        EExpr xValue = xformEExpr(rValue);
+
+        if (xPatt instanceof FinalPattern && optEjectorExpr == null && myCompilerFlags.basicOptimisations) {
+            FinalPattern finalPattern = (FinalPattern) xPatt;
+            if (finalPattern.getOptGuardExpr() == null) {
+                Slot optKnownSlot = xValue.getOptKnownSlot();
+                if (optKnownSlot != null && optKnownSlot instanceof FinalSlot) {
+                    /* This is a simple define to a value known at compile time.
+                     * Instead of creating a new local variable, just add the
+                     * value to the ScopeLayout.
+                     */
+                    NounExpr nounExpr = finalPattern.getNoun();
+                    String varName = nounExpr.asNoun().getName();
+                    NounExpr newNounExpr = new LiteralNounExpr(getOptSpan(optOriginal),
+                                                               varName,
+                                                               optKnownSlot.get(),
+                                                               getOptScopeLayout());
+                    NounPattern result = new FinalPattern(getOptSpan(optOriginal),
+                                                          newNounExpr,
+                                                          null,         // guard
+                                                          getOptScopeLayout());
+                    myLayout = oldLayout.with(varName, result);
+                    return xValue;
+                }
+            }
+        }
+
+        return new DefineExpr(getOptSpan(optOriginal),
+                              xPatt,
+                              xEjector,
+                              xValue,
+                              getOptScopeLayout());
     }
 }

@@ -12,6 +12,7 @@ import org.erights.e.elang.evm.FinalPattern;
 import org.erights.e.elang.evm.NounExpr;
 import org.erights.e.elang.evm.NounPattern;
 import org.erights.e.elang.evm.ParseNode;
+import org.erights.e.elang.evm.Pattern;
 import org.erights.e.elang.evm.SlotPattern;
 import org.erights.e.elang.evm.VarPattern;
 import org.erights.e.elang.scope.ScopeLayout;
