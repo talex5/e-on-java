@@ -54,7 +54,16 @@ makeEvaluatorAuthor(auths["systemGC"],
                     currentVat,
                     envExtras)
                     `, [ => envExtras ])
-                result += [makeEvaluator]
+                def wrappedMakeEvaluator {
+                    to shutdown() :any {
+                        return vat.orderlyShutdown("makeEvaluator shutdown4")
+                    }
+
+                    match [verb, args] {
+                        E.send(makeEvaluator, verb, args)
+                    }
+                }
+                result += [wrappedMakeEvaluator]
             }
             result
         }

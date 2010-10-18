@@ -21,8 +21,9 @@ def makeEvaluatorAuthor(gc, auths, options, vat, envExtras :Map) :any {
                                                  false,      #confined
                                                  true,       #explicitIO
                                                  envExtras)
-    
     def cmdLoopMaker := <elang:cmd.cmdLoopMakerAuthor>(gc)
+
+    var isShutdown := false
     
     def makeEvaluator {
         to run(args, props) :any {
@@ -86,9 +87,6 @@ def makeEvaluatorAuthor(gc, auths, options, vat, envExtras :Map) :any {
                 
                 to getCmdLoop() :any { cmdLoop }
             }
-        }
-        to shutdown() :void {
-            vat.orderlyShutdown("makeEvaluator shutdown")
         }
     }
 }

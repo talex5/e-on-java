@@ -22,9 +22,9 @@ def makeVatSwitcher(name) :near {
          *
          * @param vatMap A <tt>ConstMap</tt> mapping from vat names
          *               to <tt>evaluator</tt> objects.
-         * @return A ref to an <tt>evaluator</tt> object.
+         * @return [shutdown, evaluator]
          */
-        to getEvaluator(vatMap) :rcvr {
+        to getEvaluatorPair(vatMap) :Tuple[near,rcvr] {
             vatMap[name]
         }
     }
@@ -49,6 +49,10 @@ def makeTestcasePlayer(testcase) :near {
          * @return Whether the test passed, and whether to terminate early.
          */
         to reportResults(out) :Tuple[boolean,boolean] {
+            if (testcase.isShutdown()) {
+                return [true, false]
+            }
+
             def parser := makeOldUpdocParser(report)
             def [newAnswers, optStackTrace] := parser.readAnswers()
             def result := testcase.printDiffsOn(newAnswers, out)
@@ -65,16 +69,23 @@ def makeTestcasePlayer(testcase) :near {
          * @return A <tt>vow</tt> that becomes <tt>null</tt> on success
          *         or becomes broken with a problem.
          */
-        to replay(evaluator :rcvr) :vow {
-            def expr := testcase.getExpr()
-            # when-catch construct returns a promise
-            # for the value of the done function
-            when (evaluator <- evaluateForReport(expr, testcase.getExpectingProblem())) ->
-              done([newReport, status]) :any {
-                # XXX look at status
-                report := newReport
-            } catch problem {
-                Ref.broken(problem)
+        to replay([shutdown :near, evaluator :rcvr]) :vow {
+            if (testcase.isShutdown()) {
+                when (def result := shutdown()) -> {
+                    require(result == null)
+                    null
+                }
+            } else {
+                def expr := testcase.getExpr()
+                # when-catch construct returns a promise
+                # for the value of the done function
+                when (evaluator <- evaluateForReport(expr, testcase.getExpectingProblem())) ->
+                  done([newReport, status]) :any {
+                    # XXX look at status
+                    report := newReport
+                } catch problem {
+                    Ref.broken(problem)
+                }
             }
         }
     }
@@ -110,11 +121,11 @@ def makeSequencePlayer(sequence) :any {
                 players.push(makeTestcasePlayer(tc))
             }
 
-            def evaluator := vatSwitcher.getEvaluator(vatMap)
+            def evaluatorPair := vatSwitcher.getEvaluatorPair(vatMap)
 
             def doReplay(i) :void {
                 if (i < players.size()) {
-                    when (players[i].replay(evaluator)) -> done(_) :void {
+                    when (players[i].replay(evaluatorPair)) -> done(_) :void {
                         def [thisSuccess, abortEarly] := players[i].reportResults(out)
                         if (!thisSuccess) {
                             failures += 1
@@ -233,7 +244,7 @@ def makeScriptPlayer(script) :any {
                 for i => name in vatNames {
                     def makerRcvr := makers[i]
                     def evaluator := makerRcvr <- run(args, props)
-                    vatMap.put(name, evaluator, true)
+                    vatMap.put(name, [fn { makerRcvr.shutdown() }, evaluator], true)
 
                     Ref.whenBroken(makerRcvr, def rewind(_) :void {
                         if (release()) {

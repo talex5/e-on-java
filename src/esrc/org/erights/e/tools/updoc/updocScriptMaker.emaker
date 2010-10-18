@@ -172,6 +172,14 @@ def updocScriptMaker {
         }
     }
 
+    to makeShutdown() :near {
+        def shutdown {
+            to isShutdown() :boolean {
+                true
+            }
+        }
+    }
+
     /**
      * <tt>makeTestcase</tt>
      *
@@ -235,6 +243,10 @@ def updocScriptMaker {
              */
             to getExpr() :Twine {
                 expr
+            }
+
+            to isShutdown() :boolean {
+                false
             }
 
             to getExpectingProblem() :boolean {

@@ -202,21 +202,27 @@ def makeOldUpdocParser(source) :any {
      */
     def readSequence() :any {
         def current := lines[index].trim()
-        def directive := readDirective()
-        def cases := [].diverge()
-        while (index < lines.size()) {
-            def current := lines[index].trim()
-            if (current.startsWith("??")) {
-                break
-            } else if (current.startsWith("?")) {
-                def expr := readExpr()
-                def [answers, ==null] := readAnswers()
-                cases.push(updocScriptMaker.makeTestcase(expr, answers))
-            } else {
-                index += 1
+        if (current =~ `?? shutdown vat @name`) {
+            index += 1
+            updocScriptMaker.makeSequence(updocScriptMaker.makeVatDirective(name),
+                                          [updocScriptMaker.makeShutdown()])
+        } else {
+            def directive := readDirective()
+            def cases := [].diverge()
+            while (index < lines.size()) {
+                def current := lines[index].trim()
+                if (current.startsWith("??")) {
+                    break
+                } else if (current.startsWith("?")) {
+                    def expr := readExpr()
+                    def [answers, ==null] := readAnswers()
+                    cases.push(updocScriptMaker.makeTestcase(expr, answers))
+                } else {
+                    index += 1
+                }
             }
+            updocScriptMaker.makeSequence(directive, cases.snapshot())
         }
-        updocScriptMaker.makeSequence(directive, cases.snapshot())
     }
     
     def oldUpdocParser {
