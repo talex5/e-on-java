@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>causeway</name>
+  <summary>message-oriented distributed debugger</summary>
+  <description>
+      Causeway is an open source postmortem distributed debugger
+      for examining the behavior of distributed programs built as
+      communicating event loops. Its message-oriented approach follows
+      the flow of messages across process and machine boundaries.
+  </description>
+
+  <implementation id="." version="0.1">
+    <command name='run' path="causeway.e-swt">
+      <runner interface='http://repo.roscidus.com/e/e-core'>
+        <arg>-cpa</arg>
+        <arg>$SWT_JAR</arg>
+      </runner>
+    </command>
+    <requires interface='http://repo.roscidus.com/java/swt'>
+      <environment name='SWT_JAR' insert='swt.jar'/>
+    </requires>
+  </implementation>
+</interface>
