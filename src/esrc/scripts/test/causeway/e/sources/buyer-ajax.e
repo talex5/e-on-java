@@ -15,7 +15,7 @@ def args := interp.getArgs()
 def productVow
 if (args =~ [`--local`] + _) {
     traceline("local")
-    bind productVow := <import:scripts.test.causeway.product-ajax>
+    bind productVow := <this:product-ajax>
 } else {
     def makeVat := <unsafe:org.erights.e.elib.vat.makeVat>
     def productVat := makeVat.make("headless", "product")
@@ -28,7 +28,8 @@ if (args =~ [`--local`] + _) {
         traceline("boot")
     }
     bind productVow := seedVat(productVat,
-                               "<import:scripts.test.causeway.product-ajax>")
+                               "<this:product-ajax>",
+                               [ => <this> ])
 }
 
 def partNo := "123abc"
