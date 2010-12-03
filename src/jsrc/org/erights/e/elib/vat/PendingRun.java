@@ -49,4 +49,8 @@ class PendingRun extends PendingEvent {
         printContextOn(out.indent("--- "));
         out.println();
     }
+
+    public String getAbbrevCall() {
+        return "" + myTodo;
+    }
 }

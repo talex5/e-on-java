@@ -634,6 +634,10 @@ public class Vat {
         return mergeInto(runner);
     }
 
+    public String getOptName() {
+        return myOptName;
+    }
+
     /**
      * Does the redirection scheduled by {@link #mergeInto}, {@link
      * #morphInto}, and {@link #orderlyShutdown}.

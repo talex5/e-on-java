@@ -19,6 +19,7 @@ Copyright (C) 1998 Electric Communities. All Rights Reserved.
 Contributor(s): ______________________________________.
 */
 
+import org.erights.e.elib.debug.CausalityLogRecord;
 import net.captp.tables.AnswersTable;
 import net.captp.tables.ExportsTable;
 import net.captp.tables.ImportsTable;
@@ -47,7 +48,11 @@ import org.erights.e.elib.serial.Reviver;
 import org.erights.e.elib.serial.SerializationStream;
 import org.erights.e.elib.serial.UnserializationStream;
 import org.erights.e.elib.tables.ConstList;
+import org.erights.e.elib.tables.ConstMap;
+import org.erights.e.elib.vat.SendingContext;
 import org.erights.e.meta.java.math.BigIntegerSugar;
+import org.erights.e.elib.util.ArityMismatchException;
+import org.erights.e.develop.format.StringHelper;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -816,8 +821,13 @@ class CapTPConnection implements MsgHandler {
                      argsString(args) + ")");
         }
 
-        Object recip = getIncoming(recipPos);
+        final Object recip = getIncoming(recipPos);
+        if (Trace.causality.debug && Trace.ON) {
+            final String messageID = remoteVatID() + "-" + localVatID() + "-" + myReceiveCount;
+            Trace.causalityLogger.log(new ExecEvent(new SendingContext("execDeliverOnlyOp"), messageID, recip, verb, args));
+        }
         E.sendAllOnly(recip, verb, args);
+
         //The return result of sendAllOnly is correctly ignored, since, if
         //the message got this far, there was no failure to immediately queue
         //the message. A problem now is the kind of problem that a sendOnly
@@ -864,6 +874,10 @@ class CapTPConnection implements MsgHandler {
         }
 
         Object recip = getIncoming(recipPos);
+        if (Trace.causality.debug && Trace.ON) {
+            final String messageID = remoteVatID() + "-" + localVatID() + "-" + myReceiveCount;
+            Trace.causalityLogger.log(new ExecEvent(new SendingContext("execDeliverOnlyOp"), messageID, recip, verb, args));
+        }
         Ref answer = E.sendAll(recip, verb, args);
         myAnswers.put(-answerPos, answer, true);
         E.sendOnly(answer, "__whenMoreResolved", rdr);
@@ -991,6 +1005,10 @@ class CapTPConnection implements MsgHandler {
         if (null != myOptProblem) {
             throw ExceptionMgr.asSafe(myOptProblem);
         }
+        if (Trace.causality.debug && Trace.ON) {
+            final String messageID = localVatID() + "-" + remoteVatID() + "-" + (mySendCount + 1);
+            Trace.causalityLogger.log(new SendEvent(new SendingContext("sendDeliverOnlyOp"), messageID, verb, args));
+        }
         ByteArrayOutputStream bos;
         SerializationStream ser;
         try {
@@ -1037,6 +1055,10 @@ class CapTPConnection implements MsgHandler {
 
         if (null != myOptProblem) {
             throw ExceptionMgr.asSafe(myOptProblem);
+        }
+        if (Trace.causality.debug && Trace.ON) {
+            final String messageID = localVatID() + "-" + remoteVatID() + "-" + (mySendCount + 1);
+            Trace.causalityLogger.log(new SendEvent(new SendingContext("sendDeliverOp"), messageID, verb, args));
         }
         ByteArrayOutputStream bos;
         SerializationStream ser;
@@ -1233,6 +1255,37 @@ class CapTPConnection implements MsgHandler {
                 //XXX smash buffered lookups
             }
             myOptBufferedLookups = null;
+        }
+    }
+
+    private class ExecEvent extends CausalityLogRecord {
+        private String myCall;
+
+        ExecEvent(SendingContext context, String messageID, Object recip, String verb, Object[] args) {
+            super(context, messageID);
+            myCall = "" + recip + "." + verb;
+            myCall = E.abbrevCall(recip, " <- ", verb, args);
+        }
+
+        public String getEventClass() {
+            return "org.ref_send.log.Got";
+        }
+
+        protected String getStackTrace() {
+            return "{\"name\": " + StringHelper.quote(myCall) + ", \"source\": \"-\"}\n";
+        }
+    }
+
+    private class SendEvent extends CausalityLogRecord {
+        private String myCall;
+
+        SendEvent(SendingContext context, String messageID, String verb, Object[] args) {
+            super(context, messageID);
+            myCall = verb;
+        }
+
+        public String getEventClass() {
+            return "org.ref_send.log.Sent";
         }
     }
 }

@@ -126,4 +126,19 @@ public final class SendingContext implements EPrintable {
     public String toString() {
         return E.toString(this);
     }
+
+    public long getSendingTicket() {
+        return mySendingTicket;
+    }
+
+    public String getVatID() {
+        if (null == myOptSendingVat) {
+            return null;
+        }
+        return myOptSendingVat.getOptName();
+    }
+
+    public StackContext getStackContext() {
+        return myStackContext;
+    }
 }

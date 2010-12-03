@@ -118,11 +118,15 @@ class PendingDelivery extends PendingEvent {
      *
      */
     public void __printOn(TextWriter out) throws IOException {
-        out.lnPrint(E.abbrevCall(myReceiver,
-                                 myNowFlag ? "." : " <- ",
-                                 myVerb,
-                                 myArgs));
+        out.lnPrint(getAbbrevCall());
         printContextOn(out.indent("--- "));
         out.println();
+    }
+
+    public String getAbbrevCall() {
+        return E.abbrevCall(myReceiver,
+                                 myNowFlag ? "." : " <- ",
+                                 myVerb,
+                                 myArgs);
     }
 }

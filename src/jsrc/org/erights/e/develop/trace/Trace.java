@@ -24,6 +24,7 @@ Contributor(s): ______________________________________.
  *  Original version by Eric Messick.
  */
 
+import java.util.logging.Logger;
 
 /**
  * This might better be called TraceCache, but the name is retained for
@@ -132,6 +133,8 @@ final public class Trace implements TraceConstants {
     static public final Trace eruntime = new Trace("eruntime");
 
     static public final Trace causality = new Trace("causality");
+
+    static public final Logger causalityLogger = Logger.getLogger("e.causality");
 
     /**
      * Classes involved in starting up the world.

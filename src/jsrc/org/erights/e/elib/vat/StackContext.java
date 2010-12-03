@@ -87,4 +87,12 @@ public final class StackContext implements EPrintable {
     public String toString() {
         return E.toString(this);
     }
+
+    public ConstList getOptEStack() {
+        return myOptSendingEStack;
+    }
+
+    public Throwable getOptJStack() {
+        return myOptSendingJStack;
+    }
 }

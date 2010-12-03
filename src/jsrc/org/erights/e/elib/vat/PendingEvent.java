@@ -3,12 +3,17 @@ package org.erights.e.elib.vat;
 // Copyright 2002 Combex, Inc. under the terms of the MIT X license
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
+import org.erights.e.elib.debug.CausalityLogRecord;
 import org.erights.e.develop.trace.Trace;
 import org.erights.e.elib.oldeio.EPrintable;
 import org.erights.e.elib.oldeio.TextWriter;
+import org.erights.e.develop.format.StringHelper;
 import org.erights.e.elib.prim.E;
 
 import java.io.IOException;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  * Represents an event to happen within a Runner's thread.
@@ -70,6 +75,11 @@ public abstract class PendingEvent implements Runnable, EPrintable {
         long oldTicket = serv.myServingTicket;
         serv.myOptServingVat = myVat;
         serv.myServingTicket = myTicket;
+
+        if (Trace.causality.debug && Trace.ON) {
+            Trace.causalityLogger.log(new RunEvent(new SendingContext("RunEvent")));
+        }
+
         try {
             innerRun();
         } catch (Throwable problem) {
@@ -85,7 +95,10 @@ public abstract class PendingEvent implements Runnable, EPrintable {
      */
     protected void trace() {
         if (Trace.causality.debug && Trace.ON) {
-            Trace.causality.debugm("", this);
+            //Trace.causality.debugm("", this);
+            if (mySendingContext.getSendingTicket() != -1) {
+                Trace.causalityLogger.log(new NewPendingEvent());
+            }
         }
     }
 
@@ -137,5 +150,33 @@ public abstract class PendingEvent implements Runnable, EPrintable {
      */
     public String toString() {
         return E.toString(this);
+    }
+
+    abstract public String getAbbrevCall();
+
+    private class NewPendingEvent extends CausalityLogRecord {
+        NewPendingEvent() {
+            // There's always a receiving vat, so use that for the message ID
+            super(mySendingContext, myVat.getOptName() + "_" + myTicket);
+        }
+
+        public String getEventClass() {
+            return "org.ref_send.log.Sent";
+        }
+    }
+
+    private class RunEvent extends CausalityLogRecord {
+        RunEvent(SendingContext recvContext) {
+            // Message ID must be same as for NewPendingEvent
+            super(recvContext, recvContext.getVatID() + "_" + myTicket);
+        }
+
+        public String getEventClass() {
+            return "org.ref_send.log.Got";
+        }
+
+        protected String getStackTrace() {
+            return "{\"name\": " + StringHelper.quote(getAbbrevCall()) + ", \"source\": \"-\"}\n";
+        }
     }
 }

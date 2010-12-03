@@ -11,6 +11,10 @@ pragma.syntax("0.9")
 def traceline(str) :void { stderr.println(`$str`) }
 def report(message) :void { traceline(message) }
 
+def handler := <unsafe:org.erights.e.elib.debug.makeCausalityLogHandler>(<file:causality.log>.textWriter())
+def causalityLogger := <unsafe:java.util.logging.makeLogger>.getLogger("e.causality")
+causalityLogger.addHandler(handler)
+
 def args := interp.getArgs()
 def productVow
 if (args =~ [`--local`] + _) {
