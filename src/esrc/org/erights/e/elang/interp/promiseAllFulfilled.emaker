@@ -21,6 +21,7 @@ def promiseAllFulfilled0(promises) :any {
     var countDown := promises.size()
     if (countDown == 0) { return promises }
     def [result, resolver] := Ref.promise()
+    resolver.gettingCloser()
     for prom in promises {
         # using Ref.whenResolvedOnly directly because the catch/throw behavior
         # of the 'when' construct is undesirable. (Thanks to Kevin Reid for

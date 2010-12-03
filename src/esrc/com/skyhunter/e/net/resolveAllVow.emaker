@@ -16,6 +16,7 @@ def resolveAllVow(promises) :any {
     var countDown := promises.size()
     if (countDown == 0) { return promises }
     def [result, resolver] := Ref.promise()
+    resolver.gettingCloser()
     var resolution := promises
     for prom in promises {
         # using Ref.whenResolvedOnly directly because the catch/throw behavior

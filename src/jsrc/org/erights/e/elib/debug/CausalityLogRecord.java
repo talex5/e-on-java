@@ -24,11 +24,17 @@ public abstract class CausalityLogRecord extends LogRecord {
     private SendingContext mySendingContext;
     private long numberWithinTurn;
     private String myMessageID;
+    private String myConditionID;
 
     public CausalityLogRecord(SendingContext context, String messageID) {
+        this(context, messageID, null);
+    }
+
+    public CausalityLogRecord(SendingContext context, String messageID, String conditionID) {
         super(Level.WARNING, "CausalityLogRecord");
         mySendingContext = context;
         myMessageID = messageID;
+        myConditionID = conditionID;
         synchronized (this) {
             numberWithinTurn = nextNumberWithinTurn;
             nextNumberWithinTurn += 1;
@@ -121,7 +127,9 @@ public abstract class CausalityLogRecord extends LogRecord {
             "    \"number\" : " + turnNumber + ",\n" +
             "  }\n" +
             "},\n" +
-            "\"message\" : " + StringHelper.quote(myMessageID) + ",\n" +
+            // (the order is important!)
+            ((myConditionID != null) ? ("\"condition\" : " + StringHelper.quote(myConditionID) + ",\n") : "") +
+            ((myMessageID != null) ? ("\"message\" : " + StringHelper.quote(myMessageID) + ",\n") : "") +
             "\"trace\" : {\"calls\" : [" + getStackTrace() + "] }\n" +
           "}";
     }

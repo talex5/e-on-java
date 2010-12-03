@@ -49,6 +49,7 @@ import org.erights.e.elib.tables.Selfless;
 import org.erights.e.elib.util.OneArgFunc;
 import org.erights.e.elib.vat.SendingContext;
 import org.erights.e.meta.java.math.EInt;
+import org.erights.e.develop.trace.Trace;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -869,6 +870,9 @@ public abstract class Ref implements Callable {
         Object[] pair = promise();
         WhenResolvedReactor wrapper =
           new WhenResolvedReactor(reactor, ref, (Resolver)pair[1]);
+        if (Trace.causality.debug && Trace.ON) {
+            //((LocalResolver) pair[1]).traceWhen();
+        }
         Throwable optProblem = E.sendOnly(ref, "__whenMoreResolved", wrapper);
         if (null == optProblem) {
             return pair[0];

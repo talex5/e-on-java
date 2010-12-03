@@ -34,7 +34,7 @@ import org.erights.e.elib.debug.CausalityLogRecord;
 class LocalResolver implements Resolver {
     // causality tracing
     private static long nextConditionID = 0;
-    private long myConditionID;
+    private long myConditionID = -1;
 
     /**
      * Once it's done, it stops pointing at the Ref.
@@ -61,13 +61,15 @@ class LocalResolver implements Resolver {
         myOptRef = sRef;
         myOptBuf = buf;
         myOptSendingContext = null;
+    }
 
-        synchronized (this) {
-            myConditionID = nextConditionID;
-            nextConditionID += 1;
-        }
-
+    public synchronized void traceWhen() {
         if (Trace.causality.debug && Trace.ON) {
+            synchronized (LocalResolver.class) {
+                myConditionID = nextConditionID;
+                nextConditionID += 1;
+            }
+
             Trace.causalityLogger.log(new NewResolver(new SendingContext("LocalResolver")));
         }
     }
@@ -82,8 +84,10 @@ class LocalResolver implements Resolver {
             T.require(!strict, "Already resolved");
             return false;
         } else {
-            if (Trace.causality.debug && Trace.ON) {
-                Trace.causalityLogger.log(new Fulfilled(new SendingContext("LocalResolver/resolve")));
+            if (myConditionID != -1) {
+                SendingContext context = new SendingContext("LocalResolver/resolve");
+                Trace.causalityLogger.log(new Fulfilled(context));
+                Trace.causalityLogger.log(new Got(context));
             }
 
             myOptRef.setTarget(Ref.toRef(target));
@@ -128,6 +132,13 @@ class LocalResolver implements Resolver {
     public void gettingCloser() {
         myOptSendingContext =
           new SendingContext("SCcloser", myOptSendingContext);
+
+        if (myConditionID == -1) {
+            traceWhen();
+        } else {
+            SendingContext context = new SendingContext("LocalResolver/gettingCloser");
+            Trace.causalityLogger.log(new Progressed(context));
+        }
     }
 
     /**
@@ -147,17 +158,37 @@ class LocalResolver implements Resolver {
         }
 
         public String[] getEventClass() {
-            return new String[] {"org.ref_send.log.Fulfilled"};
+            return new String[] {"org.ref_send.log.Fulfilled", "org.ref_send.log.Resolved"};
+        }
+    }
+
+    private class Got extends CausalityLogRecord {
+        Got(SendingContext context) {
+            super(context, "m#" + myConditionID);
+        }
+
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Got"};
+        }
+    }
+
+    private class Progressed extends CausalityLogRecord {
+        Progressed(SendingContext context) {
+            super(context, null, "resolver#" + myConditionID);
+        }
+
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Progressed", "org.ref_send.log.Resolved"};
         }
     }
 
     private class NewResolver extends CausalityLogRecord {
         NewResolver(SendingContext context) {
-            super(context, null, "resolver#" + myConditionID);
+            super(context, "m#" + myConditionID, "resolver#" + myConditionID);
         }
 
         public String[] getEventClass() {
-            return new String[] {"org.ref_send.log.SentIf"};
+            return new String[] {"org.ref_send.log.SentIf", "org.ref_send.log.Sent"};
         }
     }
 }
