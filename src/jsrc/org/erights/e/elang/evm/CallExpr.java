@@ -19,6 +19,8 @@ Copyright (C) 1998 Electric Communities. All Rights Reserved.
 Contributor(s): ______________________________________.
 */
 
+import org.erights.e.elang.interp.E4E;
+import org.erights.e.elib.prim.E;
 import org.erights.e.elang.scope.EvalContext;
 import org.erights.e.elang.scope.ScopeLayout;
 import org.erights.e.elang.syntax.ELexer;
@@ -130,6 +132,18 @@ public class CallExpr extends EExpr implements EStackItem {
 
         Runner.pushEStackItem(this);
         try {
+            /* Optimisation: The parser expands foo<-bar(args) to E.send(foo, "bar", args)
+             * If we don't care about the result, use E.sendOnly(foo, "bar", args) instead.
+             */
+            if (forValue == false && receiver instanceof StaticMaker && /* receiver == E4E.class && */ myVerb.equals("send") && argVals.length == 3) {
+                //System.out.println("skip: " + receiver + ", " + argVals.length);
+                Throwable optProblem = E4E.sendOnly(argVals[0], (String) argVals[1], (Object[]) E.as(argVals[2], Object[].class));
+                if (optProblem != null) {
+                    throw optProblem;
+                }
+                return null;
+            }
+
             //noinspection UnnecessaryLocalVariable
             Object result = mySelector.callIt(receiver, argVals);
             return result;
