@@ -141,4 +141,8 @@ public final class SendingContext implements EPrintable {
     public StackContext getStackContext() {
         return myStackContext;
     }
+
+    public SendingContext getOptNext() {
+        return myOptNextContext;
+    }
 }

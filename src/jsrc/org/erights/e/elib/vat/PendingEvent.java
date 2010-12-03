@@ -76,10 +76,6 @@ public abstract class PendingEvent implements Runnable, EPrintable {
         serv.myOptServingVat = myVat;
         serv.myServingTicket = myTicket;
 
-        if (Trace.causality.debug && Trace.ON) {
-            Trace.causalityLogger.log(new RunEvent(new SendingContext("RunEvent")));
-        }
-
         try {
             innerRun();
         } catch (Throwable problem) {
@@ -96,9 +92,6 @@ public abstract class PendingEvent implements Runnable, EPrintable {
     protected void trace() {
         if (Trace.causality.debug && Trace.ON) {
             //Trace.causality.debugm("", this);
-            if (mySendingContext.getSendingTicket() != -1) {
-                Trace.causalityLogger.log(new NewPendingEvent());
-            }
         }
     }
 
@@ -154,7 +147,7 @@ public abstract class PendingEvent implements Runnable, EPrintable {
 
     abstract public String getAbbrevCall();
 
-    private class NewPendingEvent extends CausalityLogRecord {
+    protected class NewPendingEvent extends CausalityLogRecord {
         NewPendingEvent() {
             // There's always a receiving vat, so use that for the message ID
             super(mySendingContext, myVat.getOptName() + "_" + myTicket);
@@ -165,7 +158,7 @@ public abstract class PendingEvent implements Runnable, EPrintable {
         }
     }
 
-    private class RunEvent extends CausalityLogRecord {
+    protected class RunEvent extends CausalityLogRecord {
         RunEvent(SendingContext recvContext) {
             // Message ID must be same as for NewPendingEvent
             super(recvContext, recvContext.getVatID() + "_" + myTicket);

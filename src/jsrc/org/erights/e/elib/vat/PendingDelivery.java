@@ -23,6 +23,7 @@ import org.erights.e.elib.oldeio.TextWriter;
 import org.erights.e.elib.prim.E;
 import org.erights.e.elib.prim.Message;
 import org.erights.e.elib.ref.Resolver;
+import org.erights.e.develop.trace.Trace;
 
 import java.io.IOException;
 
@@ -86,12 +87,23 @@ class PendingDelivery extends PendingEvent {
         trace();
     }
 
+    protected void trace() {
+        if (Trace.causality.debug && Trace.ON) {
+            //if (mySendingContext.getSendingTicket() != -1) {
+            Trace.causalityLogger.log(new NewPendingEvent());
+        }
+    }
+
     /**
      * Actually do the delivery and report the outcome.
      */
     public void innerRun() {
         Object value;
         try {
+            if (Trace.causality.debug && Trace.ON) {
+                Trace.causalityLogger.log(new RunEvent(new SendingContext("RunEvent")));
+            }
+
             if (myNowFlag) {
                 value = E.callAll(myReceiver, myVerb, myArgs);
             } else {
