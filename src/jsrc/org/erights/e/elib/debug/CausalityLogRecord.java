@@ -26,9 +26,9 @@ public abstract class CausalityLogRecord extends LogRecord {
     public CausalityLogRecord(SendingContext context, String messageID) {
         super(Level.WARNING, "CausalityLogRecord");
         mySendingContext = context;
-        numberWithinTurn = nextNumberWithinTurn;
         myMessageID = messageID;
         synchronized (this) {
+            numberWithinTurn = nextNumberWithinTurn;
             nextNumberWithinTurn += 1;
         }
     }
@@ -53,11 +53,12 @@ public abstract class CausalityLogRecord extends LogRecord {
                 String source;
                 int line;
                 if (sourceSpan == null) {
-                    continue;
+                    source = "-";
+                    line = 0;
+                } else {
+                    source = sourceSpan.getUrl();
+                    line = sourceSpan.getStartLine();
                 }
-
-                source = sourceSpan.getUrl();
-                line = sourceSpan.getStartLine();
 
                 if (!"".equals(calls)) {
                     calls += ", ";
@@ -68,7 +69,7 @@ public abstract class CausalityLogRecord extends LogRecord {
             // Java stack
             StackTraceElement[] jFrames = stack.getOptJStack().getStackTrace();
 
-            for (int i = 4; i < jFrames.length; i++) {
+            for (int i = 3; i < jFrames.length; i++) {
                 StackTraceElement rawFrame = jFrames[i];
                 String name = rawFrame.getMethodName();
                 String source = rawFrame.getClassName().replaceAll("\\.", "/") + ".java";
@@ -78,6 +79,9 @@ public abstract class CausalityLogRecord extends LogRecord {
                 }
                 calls += "{\"name\": " + StringHelper.quote(name) + ", \"source\": " + StringHelper.quote(source) + ", \"span\": [[" + line + "]]}";
             }
+        }
+        if (calls.equals("")) {
+            throw new RuntimeException("No stack: " + mySendingContext);
         }
         return calls;
     }
