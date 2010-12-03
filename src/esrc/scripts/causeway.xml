@@ -15,6 +15,7 @@
       <runner interface='http://repo.roscidus.com/e/e-core'>
         <arg>-cpa</arg>
         <arg>$SWT_JAR</arg>
+        <arg>-J-Xss512m</arg>
         <!--<arg>-Dcauseway_debug=true</arg>-->
       </runner>
     </command>

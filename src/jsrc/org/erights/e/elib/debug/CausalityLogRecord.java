@@ -6,6 +6,8 @@ import org.erights.e.develop.format.StringHelper;
 import org.erights.e.elib.base.SourceSpan;
 import org.erights.e.elib.debug.EStackItem;
 import org.erights.e.elib.tables.ConstList;
+import org.erights.e.elib.oldeio.TextWriter;
+import java.io.StringWriter;
 
 /*
 Copyright University of Southampton IT Innovation Centre, 2010,
@@ -45,10 +47,21 @@ public abstract class CausalityLogRecord extends LogRecord {
             int nFrames = rawFrames.size();
 
             // 1st frame is Ref.send, so skip that
+            int firstFrame = (nFrames > 1) ? nFrames - 2 : nFrames - 1;
             // also, we need to reverse the order of the frames
-            for (int i = nFrames - 1; i >= 0; i--) {
+            for (int i = firstFrame; i >= 0; i--) {
                 EStackItem rawFrame = (EStackItem) rawFrames.get(i);
-                String name = rawFrame.toString();
+                String name;
+
+                try {
+                    StringWriter sw = new StringWriter();
+                    TextWriter tw = new TextWriter(sw);
+                    rawFrame.traceOn(tw);
+                    name = sw.getBuffer().toString();
+                } catch (Throwable ex) {
+                    throw new RuntimeException(ex);
+                }
+
                 SourceSpan sourceSpan = rawFrame.getOptSpan();
                 String source;
                 int line;
