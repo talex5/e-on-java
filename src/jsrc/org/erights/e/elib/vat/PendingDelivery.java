@@ -90,7 +90,11 @@ class PendingDelivery extends PendingEvent {
     protected void trace() {
         if (Trace.causality.debug && Trace.ON) {
             //if (mySendingContext.getSendingTicket() != -1) {
-            Trace.causalityLogger.log(new NewPendingEvent());
+            SendingContext context = mySendingContext;
+            while (context.getSendingTicket() == -1) {
+                context = context.getOptNext();
+            }
+            Trace.causalityLogger.log(new NewPendingEvent(context));
         }
     }
 

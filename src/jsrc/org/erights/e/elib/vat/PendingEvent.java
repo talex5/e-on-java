@@ -37,7 +37,7 @@ public abstract class PendingEvent implements Runnable, EPrintable {
     /**
      *
      */
-    private final SendingContext mySendingContext;
+    protected final SendingContext mySendingContext;
 
     /**
      * @param vat The Vat onto which this PendingEvent will be queued. Note
@@ -148,9 +148,9 @@ public abstract class PendingEvent implements Runnable, EPrintable {
     abstract public String getAbbrevCall();
 
     protected class NewPendingEvent extends CausalityLogRecord {
-        NewPendingEvent() {
+        NewPendingEvent(SendingContext context) {
             // There's always a receiving vat, so use that for the message ID
-            super(mySendingContext, myVat.getOptName() + "_" + myTicket);
+            super(context, myVat.getOptName() + "_" + myTicket);
         }
 
         public String getEventClass() {
