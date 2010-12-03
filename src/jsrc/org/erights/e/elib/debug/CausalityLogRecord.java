@@ -71,7 +71,7 @@ public abstract class CausalityLogRecord extends LogRecord {
             for (int i = 4; i < jFrames.length; i++) {
                 StackTraceElement rawFrame = jFrames[i];
                 String name = rawFrame.getMethodName();
-                String source = "" + rawFrame.getFileName();
+                String source = rawFrame.getClassName().replaceAll("\\.", "/") + ".java";
                 int line = rawFrame.getLineNumber();
                 if (!"".equals(calls)) {
                     calls += ", ";
