@@ -147,14 +147,25 @@ public abstract class PendingEvent implements Runnable, EPrintable {
 
     abstract public String getAbbrevCall();
 
+    protected class NewProgressEvent extends CausalityLogRecord {
+        NewProgressEvent(SendingContext context) {
+            // There's always a receiving vat, so use that for the message ID
+            super(context, myVat.getOptName() + "_" + myTicket);
+        }
+
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Progressed", "org.ref_send.log.Resolved"};
+        }
+    }
+
     protected class NewPendingEvent extends CausalityLogRecord {
         NewPendingEvent(SendingContext context) {
             // There's always a receiving vat, so use that for the message ID
             super(context, myVat.getOptName() + "_" + myTicket);
         }
 
-        public String getEventClass() {
-            return "org.ref_send.log.Sent";
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Sent"};
         }
     }
 
@@ -164,8 +175,8 @@ public abstract class PendingEvent implements Runnable, EPrintable {
             super(recvContext, recvContext.getVatID() + "_" + myTicket);
         }
 
-        public String getEventClass() {
-            return "org.ref_send.log.Got";
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Got"};
         }
 
         protected String getStackTrace() {

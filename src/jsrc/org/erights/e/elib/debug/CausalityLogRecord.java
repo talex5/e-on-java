@@ -106,8 +106,14 @@ public abstract class CausalityLogRecord extends LogRecord {
         }
         long turnNumber = mySendingContext.getSendingTicket();
 
+        String classesStr = "";
+        String[] classes = getEventClass();
+        for (int i = 0; i < classes.length; i++) {
+            classesStr += StringHelper.quote(classes[i]) + ", ";
+        }
+
         return "{\n" +
-            "\"class\" : [" + StringHelper.quote(getEventClass()) + ", \"org.ref_send.log.Event\" ],\n" +
+            "\"class\" : [" + classesStr + "\"org.ref_send.log.Event\"],\n" +
             "\"anchor\" : {\n" +
             "  \"number\" : " + numberWithinTurn + ",\n" +
             "  \"turn\" : {\n" +
@@ -120,5 +126,5 @@ public abstract class CausalityLogRecord extends LogRecord {
           "}";
     }
     
-    abstract public String getEventClass();
+    abstract public String[] getEventClass();
 }

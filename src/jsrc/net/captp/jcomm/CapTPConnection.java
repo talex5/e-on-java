@@ -1267,8 +1267,8 @@ class CapTPConnection implements MsgHandler {
             myCall = E.abbrevCall(recip, " <- ", verb, args);
         }
 
-        public String getEventClass() {
-            return "org.ref_send.log.Got";
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Got"};
         }
 
         protected String getStackTrace() {
@@ -1284,8 +1284,8 @@ class CapTPConnection implements MsgHandler {
             myCall = verb;
         }
 
-        public String getEventClass() {
-            return "org.ref_send.log.Sent";
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Sent"};
         }
     }
 }

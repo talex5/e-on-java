@@ -22,6 +22,8 @@ Contributor(s): ______________________________________.
 import org.erights.e.develop.assertion.T;
 import org.erights.e.elib.tables.FlexList;
 import org.erights.e.elib.vat.SendingContext;
+import org.erights.e.develop.trace.Trace;
+import org.erights.e.elib.debug.CausalityLogRecord;
 
 /**
  * The arrowhead facet of a local promise for resolving the outcome of the
@@ -30,6 +32,9 @@ import org.erights.e.elib.vat.SendingContext;
  * @author Mark S. Miller
  */
 class LocalResolver implements Resolver {
+    // causality tracing
+    private static long nextConditionID = 0;
+    private long myConditionID;
 
     /**
      * Once it's done, it stops pointing at the Ref.
@@ -56,6 +61,15 @@ class LocalResolver implements Resolver {
         myOptRef = sRef;
         myOptBuf = buf;
         myOptSendingContext = null;
+
+        synchronized (this) {
+            myConditionID = nextConditionID;
+            nextConditionID += 1;
+        }
+
+        if (Trace.causality.debug && Trace.ON) {
+            Trace.causalityLogger.log(new NewResolver(new SendingContext("LocalResolver")));
+        }
     }
 
     /**
@@ -68,6 +82,10 @@ class LocalResolver implements Resolver {
             T.require(!strict, "Already resolved");
             return false;
         } else {
+            if (Trace.causality.debug && Trace.ON) {
+                Trace.causalityLogger.log(new Fulfilled(new SendingContext("LocalResolver/resolve")));
+            }
+
             myOptRef.setTarget(Ref.toRef(target));
             myOptRef.commit();
             if (null != myOptBuf) {
@@ -120,6 +138,26 @@ class LocalResolver implements Resolver {
             return "<Closed Resolver>";
         } else {
             return "<Resolver>";
+        }
+    }
+
+    private class Fulfilled extends CausalityLogRecord {
+        Fulfilled(SendingContext context) {
+            super(context, null, "resolver#" + myConditionID);
+        }
+
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.Fulfilled"};
+        }
+    }
+
+    private class NewResolver extends CausalityLogRecord {
+        NewResolver(SendingContext context) {
+            super(context, null, "resolver#" + myConditionID);
+        }
+
+        public String[] getEventClass() {
+            return new String[] {"org.ref_send.log.SentIf"};
         }
     }
 }
