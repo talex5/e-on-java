@@ -13,6 +13,10 @@ def asyncAnd := <import:org.erights.e.examples.concurrency.asyncAnd>
 def traceline(str) :void { stderr.println(`$str`) }
 def report(message) :void { traceline(message) }
 
+def handler := <unsafe:org.erights.e.elib.debug.makeCausalityLogHandler>(<file:causality.log>.textWriter())
+def causalityLogger := <unsafe:java.util.logging.makeLogger>.getLogger("e.causality")
+causalityLogger.addHandler(handler)
+
 def args := interp.getArgs()
 def productVow
 if (args =~ [`--local`] + _) {
@@ -30,7 +34,8 @@ if (args =~ [`--local`] + _) {
         traceline("boot")
     }
     bind productVow := seedVat(productVat,
-                               "<import:scripts.test.causeway.product-promise>")
+                               "<this:product-promise>",
+                               [ => <this> ])
 }
 
 def partNo := "123abc"
