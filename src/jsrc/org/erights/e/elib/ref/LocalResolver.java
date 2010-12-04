@@ -160,6 +160,10 @@ class LocalResolver implements Resolver {
         public String[] getEventClass() {
             return new String[] {"org.ref_send.log.Fulfilled", "org.ref_send.log.Resolved"};
         }
+
+        protected String getText() {
+            return null;
+        }
     }
 
     private class Got extends CausalityLogRecord {
@@ -169,6 +173,10 @@ class LocalResolver implements Resolver {
 
         public String[] getEventClass() {
             return new String[] {"org.ref_send.log.Got"};
+        }
+
+        protected String getText() {
+            return null;
         }
     }
 
@@ -180,6 +188,10 @@ class LocalResolver implements Resolver {
         public String[] getEventClass() {
             return new String[] {"org.ref_send.log.Progressed", "org.ref_send.log.Resolved"};
         }
+
+        protected String getText() {
+            return null;
+        }
     }
 
     private class NewResolver extends CausalityLogRecord {
@@ -189,6 +201,10 @@ class LocalResolver implements Resolver {
 
         public String[] getEventClass() {
             return new String[] {"org.ref_send.log.SentIf", "org.ref_send.log.Sent"};
+        }
+
+        protected String getText() {
+            return null;
         }
     }
 }

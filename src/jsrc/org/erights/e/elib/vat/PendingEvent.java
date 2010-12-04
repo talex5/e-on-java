@@ -156,6 +156,10 @@ public abstract class PendingEvent implements Runnable, EPrintable {
         public String[] getEventClass() {
             return new String[] {"org.ref_send.log.Progressed", "org.ref_send.log.Resolved"};
         }
+
+        protected String getText() {
+            return null;
+        }
     }
 
     protected class NewPendingEvent extends CausalityLogRecord {
@@ -166,6 +170,10 @@ public abstract class PendingEvent implements Runnable, EPrintable {
 
         public String[] getEventClass() {
             return new String[] {"org.ref_send.log.Sent"};
+        }
+
+        protected String getText() {
+            return getAbbrevCall();
         }
     }
 
@@ -181,6 +189,10 @@ public abstract class PendingEvent implements Runnable, EPrintable {
 
         protected String getStackTrace() {
             return "{\"name\": " + StringHelper.quote(getAbbrevCall()) + ", \"source\": \"-\"}\n";
+        }
+
+        protected String getText() {
+            return null;
         }
     }
 }

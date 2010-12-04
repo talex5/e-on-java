@@ -1264,7 +1264,7 @@ class CapTPConnection implements MsgHandler {
         ExecEvent(SendingContext context, String messageID, Object recip, String verb, Object[] args) {
             super(context, messageID);
             myCall = "" + recip + "." + verb;
-            myCall = E.abbrevCall(recip, " <- ", verb, args);
+            myCall = E.abbrevCall(recip, "<-", verb, args);
         }
 
         public String[] getEventClass() {
@@ -1273,6 +1273,10 @@ class CapTPConnection implements MsgHandler {
 
         protected String getStackTrace() {
             return "{\"name\": " + StringHelper.quote(myCall) + ", \"source\": \"-\"}\n";
+        }
+
+        protected String getText() {
+            return null;    // must be null for a Got message
         }
     }
 
@@ -1286,6 +1290,10 @@ class CapTPConnection implements MsgHandler {
 
         public String[] getEventClass() {
             return new String[] {"org.ref_send.log.Sent"};
+        }
+
+        protected String getText() {
+            return myCall;
         }
     }
 }

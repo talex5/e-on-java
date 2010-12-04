@@ -111,6 +111,7 @@ public abstract class CausalityLogRecord extends LogRecord {
             loopName = "unknown vat";
         }
         long turnNumber = mySendingContext.getSendingTicket();
+        String text = getText();
 
         String classesStr = "";
         String[] classes = getEventClass();
@@ -130,9 +131,13 @@ public abstract class CausalityLogRecord extends LogRecord {
             // (the order is important!)
             ((myConditionID != null) ? ("\"condition\" : " + StringHelper.quote(myConditionID) + ",\n") : "") +
             ((myMessageID != null) ? ("\"message\" : " + StringHelper.quote(myMessageID) + ",\n") : "") +
+            ((text != null) ? ("\"text\" : " + StringHelper.quote(text) + ",\n") : "") +
             "\"trace\" : {\"calls\" : [" + getStackTrace() + "] }\n" +
           "}";
     }
     
     abstract public String[] getEventClass();
+
+    /** A label for the event. */
+    abstract protected String getText();
 }
