@@ -88,7 +88,7 @@ class OldRemotePromise extends EProxy {
             final Ref finalTarget = newTarget;
             myOptCommitReactors.iterate(new AssocFunc() {
                 public void run(Object key, Object reactor) {
-                    Throwable optProblem = finalTarget.whenResolved((OneArgFunc) reactor);
+                    Throwable optProblem = finalTarget.whenResolved(reactor);
                     if (optProblem != null) {
                         Trace.causality.warningm("whenResolved failed", optProblem);
                     }
@@ -109,7 +109,7 @@ class OldRemotePromise extends EProxy {
         }
     }
 
-    Throwable whenResolved(OneArgFunc reactor) {
+    public Throwable whenResolved(Object reactor) {
         if (myOptTarget == null) {
             if (myOptCommitReactors == null) {
                 myOptCommitReactors = ConstList.EmptyList.diverge();

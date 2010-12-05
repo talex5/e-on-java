@@ -25,6 +25,11 @@ import org.erights.e.elib.prim.Message;
 import org.erights.e.elib.prim.MirandaMethods;
 import org.erights.e.elib.sealing.SealedBox;
 import org.erights.e.elib.slot.Guard;
+import org.erights.e.develop.trace.Trace;
+import org.erights.e.elib.tables.AssocFunc;
+import org.erights.e.elib.tables.FlexList;
+import org.erights.e.elib.tables.ConstList;
+import org.erights.e.elib.util.OneArgFunc;
 
 import java.io.IOException;
 
@@ -39,6 +44,8 @@ import java.io.IOException;
  * @author Mark S. Miller
  */
 class SwitchableRef extends Ref {
+    /** People to notify when we're committed. */
+    private FlexList myOptCommitReactors;
 
     /**
      * The current destination for all messages.
@@ -202,6 +209,18 @@ class SwitchableRef extends Ref {
         } else {
             myTarget = newTarget;
         }
+
+        if (myOptCommitReactors != null) {
+            final Ref finalTarget = newTarget;
+            myOptCommitReactors.iterate(new AssocFunc() {
+                public void run(Object key, Object reactor) {
+                    Throwable optProblem = finalTarget.whenResolved(reactor);
+                    if (optProblem != null) {
+                        Trace.causality.warningm("whenResolved failed", optProblem);
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -237,6 +256,19 @@ class SwitchableRef extends Ref {
         } else {
             resolutionRef();
             myTarget.__printOn(out);
+        }
+    }
+
+    // XXX: isNear
+    public Throwable whenResolved(Object reactor) {
+        if (myIsSwitchable) {
+            if (myOptCommitReactors == null) {
+                myOptCommitReactors = ConstList.EmptyList.diverge();
+            }
+            myOptCommitReactors.push(reactor);
+            return null;
+        } else {
+            return myTarget.whenResolved(reactor);
         }
     }
 }

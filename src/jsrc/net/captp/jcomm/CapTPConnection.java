@@ -53,6 +53,7 @@ import org.erights.e.elib.vat.SendingContext;
 import org.erights.e.meta.java.math.BigIntegerSugar;
 import org.erights.e.elib.util.ArityMismatchException;
 import org.erights.e.develop.format.StringHelper;
+import org.erights.e.elib.util.OneArgFunc;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -857,7 +858,7 @@ class CapTPConnection implements MsgHandler {
     /**
      *
      */
-    private void execDeliverOp(int answerPos, Object rdr,
+    private void execDeliverOp(int answerPos, final Object rdr,
 
                                int recipPos, String verb, Object[] args) {
         if (Trace.causality.debug && Trace.ON) {
@@ -880,7 +881,7 @@ class CapTPConnection implements MsgHandler {
         }
         Ref answer = E.sendAll(recip, verb, args);
         myAnswers.put(-answerPos, answer, true);
-        E.sendOnly(answer, "__whenMoreResolved", rdr);
+        answer.whenResolved(rdr);
     }
 
     /**
@@ -1263,7 +1264,6 @@ class CapTPConnection implements MsgHandler {
 
         ExecEvent(SendingContext context, String messageID, Object recip, String verb, Object[] args) {
             super(context, messageID);
-            myCall = "" + recip + "." + verb;
             myCall = E.abbrevCall(recip, "<-", verb, args);
         }
 

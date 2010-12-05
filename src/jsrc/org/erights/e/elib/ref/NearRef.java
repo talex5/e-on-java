@@ -172,7 +172,7 @@ class NearRef extends Ref {
         out.print(myTarget);
     }
 
-    Throwable whenResolved(OneArgFunc reactor) {
+    public Throwable whenResolved(Object reactor) {
         return E.sendAllOnly(reactor, "run", new Object[] {myTarget});
     }
 }

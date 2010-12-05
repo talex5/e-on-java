@@ -977,7 +977,7 @@ public abstract class Ref implements Callable {
      * This also means that reactor may be called before other messages sent
      * previously on this Ref have been delivered.
      */
-    Throwable whenResolved(OneArgFunc reactor) {
+    public Throwable whenResolved(Object reactor) {
         return sendAllOnly("__whenMoreResolved", new Object[] {reactor});
     }
 
