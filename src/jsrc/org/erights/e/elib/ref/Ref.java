@@ -857,9 +857,12 @@ public abstract class Ref implements Callable {
      * exactly one of these events.
      * <p/>
      * Once ref becomes resolved the reactor will be invoked with the
-     * resolution. Should the reactor be invoked with a non-broken value (and
-     * therefore a fulfilled value), all earlier messages sent on ref before
-     * the whenResolved are guaranteed to have been successfully delivered.
+     * resolution.
+     *
+     * XXX: Removed as too slow: should the reactor be invoked with a
+     * non-broken value (and therefore a fulfilled value), all earlier messages
+     * sent on ref before the whenResolved are guaranteed to have been
+     * successfully delivered.
      *
      * @return A promise that will resolve to the outcome of calling the
      *         reactor, as explained <a href= "http://www.eros-os.org/pipermail/e-lang/2001-August/005638.html"
@@ -870,10 +873,13 @@ public abstract class Ref implements Callable {
         Object[] pair = promise();
         WhenResolvedReactor wrapper =
           new WhenResolvedReactor(reactor, ref, (Resolver)pair[1]);
-        if (Trace.causality.debug && Trace.ON) {
-            //((LocalResolver) pair[1]).traceWhen();
+
+        Throwable optProblem;
+        if (ref instanceof Ref) {
+            optProblem = ((Ref) ref).whenResolved(wrapper);
+        } else {
+            optProblem = E.sendOnly(wrapper, "run", ref);
         }
-        Throwable optProblem = E.sendOnly(ref, "__whenMoreResolved", wrapper);
         if (null == optProblem) {
             return pair[0];
         } else {
@@ -963,6 +969,17 @@ public abstract class Ref implements Callable {
      * order for {@link Ref#resolution() Ref.resolution/0} to be thread safe.
      */
     abstract Ref resolutionRef();
+
+    /**
+     * When this Ref resolves, pass the resolution to reactor. The default behaviour
+     * is to send a __whenMoreResolved(reactor) message. However, subclasses may
+     * optimise this by queuing the request locally until the ref resolves.
+     * This also means that reactor may be called before other messages sent
+     * previously on this Ref have been delivered.
+     */
+    Throwable whenResolved(OneArgFunc reactor) {
+        return sendAllOnly("__whenMoreResolved", new Object[] {reactor});
+    }
 
     /**
      * Use {@link Ref#resolution(Object) Ref.resolution/1} rather than

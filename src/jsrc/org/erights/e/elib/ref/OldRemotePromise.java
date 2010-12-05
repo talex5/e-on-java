@@ -2,6 +2,11 @@ package org.erights.e.elib.ref;
 
 import org.erights.e.develop.assertion.T;
 import org.erights.e.elib.oldeio.TextWriter;
+import org.erights.e.develop.trace.Trace;
+import org.erights.e.elib.tables.AssocFunc;
+import org.erights.e.elib.tables.FlexList;
+import org.erights.e.elib.tables.ConstList;
+import org.erights.e.elib.util.OneArgFunc;
 
 import java.io.IOException;
 
@@ -36,6 +41,8 @@ Contributor(s): ______________________________________.
  * @author Mark S. Miller
  */
 class OldRemotePromise extends EProxy {
+    /** People to notify when we're committed. */
+    private FlexList myOptCommitReactors;
 
     /**
      *
@@ -76,6 +83,18 @@ class OldRemotePromise extends EProxy {
         }
         //XXX should we allow throws to propogate?
         handler.handleResolution(myOptTarget);
+
+        if (myOptCommitReactors != null) {
+            final Ref finalTarget = newTarget;
+            myOptCommitReactors.iterate(new AssocFunc() {
+                public void run(Object key, Object reactor) {
+                    Throwable optProblem = finalTarget.whenResolved((OneArgFunc) reactor);
+                    if (optProblem != null) {
+                        Trace.causality.warningm("whenResolved failed", optProblem);
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -87,6 +106,18 @@ class OldRemotePromise extends EProxy {
             out.print("<Promise>");
         } else {
             myOptTarget.__printOn(out);
+        }
+    }
+
+    Throwable whenResolved(OneArgFunc reactor) {
+        if (myOptTarget == null) {
+            if (myOptCommitReactors == null) {
+                myOptCommitReactors = ConstList.EmptyList.diverge();
+            }
+            myOptCommitReactors.push(reactor);
+            return null;
+        } else {
+            return myOptTarget.whenResolved(reactor);
         }
     }
 }

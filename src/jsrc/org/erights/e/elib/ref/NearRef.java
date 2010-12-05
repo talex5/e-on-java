@@ -27,6 +27,7 @@ import org.erights.e.elib.prim.Message;
 import org.erights.e.elib.sealing.SealedBox;
 import org.erights.e.elib.slot.Guard;
 import org.erights.e.elib.vat.Vat;
+import org.erights.e.elib.util.OneArgFunc;
 
 import java.io.IOException;
 
@@ -169,5 +170,9 @@ class NearRef extends Ref {
      */
     public void __printOn(TextWriter out) throws IOException {
         out.print(myTarget);
+    }
+
+    Throwable whenResolved(OneArgFunc reactor) {
+        return E.sendAllOnly(reactor, "run", new Object[] {myTarget});
     }
 }
