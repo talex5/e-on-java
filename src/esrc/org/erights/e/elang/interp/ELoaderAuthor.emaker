@@ -65,10 +65,14 @@ def loaderAuthor {
 
                 return def loader {
                     to get(name) {
-                        return compiledCache.fetch(name, fn {
-                            def src := sourceDir[`$name.emaker`].getTwine()
-                            compiledCache[name] := eParser(src).compile(makeFileScope(extendedSafeScope, name))
-                        })()
+                        def cached := compiledCache.fetch(name, fn {})
+                        if (cached != null) {
+                            return cached()
+                        }
+                        # (do this outside of the ifMissing callback to shorten the stack-trace on error)
+                        def src := sourceDir[`$name.emaker`].getTwine()
+                        def newCached := compiledCache[name] := eParser(src).compile(makeFileScope(extendedSafeScope, name))
+                        return newCached()
                     }
 
                     /** Like get/1, but evaluate in an extension of baseScope rather than of safeScope. */
