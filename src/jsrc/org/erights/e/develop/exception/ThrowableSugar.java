@@ -143,6 +143,28 @@ public class ThrowableSugar {
             }
             String msg = self.getMessage();
             if (msg != null && 1 <= msg.length()) {
+                if (msg.startsWith(". ")) {
+                    msg = "  \u001b[33m" + msg.substring(2) + "\u001b[0m";
+                } else {
+                    /*
+                    if (msg.startsWith("@ ")) {
+                        msg = "\u001b[32m" + msg.substring(2) + "\u001b[0m";
+                    } else if (msg.startsWith("- ")) {
+                        msg = msg.substring(2);
+                    }
+                    */
+                    int i = msg.indexOf("<file:");
+                    if (i == -1) {
+                        i = msg.indexOf("</");
+                    }
+                    if (i == -1) {
+                        i = msg.indexOf("<jar:");
+                    }
+                    if (i >= 0) {
+                        int j = msg.indexOf(">", i) + 1;
+                        msg = msg.substring(0, i) + "\u001b[32m" + msg.substring(i, j) + "\u001b[0m" + msg.substring(j);
+                    }
+                }
                 result = "\n" + msg + result;
             }
             self = sub;
