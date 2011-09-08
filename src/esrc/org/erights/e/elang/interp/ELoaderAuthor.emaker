@@ -24,6 +24,14 @@ def eParser := <elang:syntax.makeEParser>
  */
 def loaderAuthor {
     to run(makeTraceln) {
+        return loaderAuthor(makeTraceln, eParser)
+    }
+
+    /** This version allows specifying a custom parser.
+     * This is useful if you want to process the code in some way (e.g. instrumenting it
+     * with tracing code).
+     */
+    to run(makeTraceln, parser) {
         return def makeLoader {
             to run(var sourceDir, envExtras :vow[Map], fqnPrefix :String) {
                 #traceln(`creating loader for $fqnPrefix from $sourceDir`)
@@ -71,7 +79,7 @@ def loaderAuthor {
                         }
                         # (do this outside of the ifMissing callback to shorten the stack-trace on error)
                         def src := sourceDir[`$name.emaker`].getTwine()
-                        def newCached := compiledCache[name] := eParser(src).compile(makeFileScope(extendedSafeScope, name))
+                        def newCached := compiledCache[name] := parser(src).compile(makeFileScope(extendedSafeScope, name))
                         return newCached()
                     }
 
@@ -81,7 +89,7 @@ def loaderAuthor {
                         def name := pathName(0, i)
                         def src := sourceDir[pathName].getTwine()
                         def extendedBaseScope := baseScope.with(envExtras)
-                        return eParser(src).eval(makeFileScope(extendedBaseScope, name))
+                        return parser(src).eval(makeFileScope(extendedBaseScope, name))
                     }
 
                     /** Get the (readonly) source directory. This is useful for loading icons, help files, etc. */
@@ -104,7 +112,7 @@ def loaderAuthor {
 
             to __optSealedDispatch(brand) {
                 if (brand == persistenceSealer.getBrand()) {
-                    return persistenceSealer.seal([loaderAuthor, "run", [makeTraceln]])
+                    return persistenceSealer.seal([loaderAuthor, "run", [makeTraceln, parser]])
                 }
                 return null
             }
