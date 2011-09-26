@@ -189,5 +189,5 @@ all_noparse: pre_parsers twixt_parsers post_parsers _optional
 install:
 	-rm -f $(TOP)/dist/e.jar
 	(cd $(TOP)/classes; \
-	jar cfm ../dist/e.jar ../src/jsrc/ForManifest.txt .)
+	${JAVA_JDK_BIN}jar cfm ../dist/e.jar ../src/jsrc/ForManifest.txt .)
 	# (cd $(TOP)/dist; jar -i e.jar)

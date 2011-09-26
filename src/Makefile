@@ -34,7 +34,6 @@ targdir-clobber:
 setup:
 	-rm -rf $(TOP)/dist
 	mkdir -p $(TOP)/dist/bin
-	mkdir -p $(TOP)/dist/0install
 	cp -rf $(TOP)/src/bin/icons $(TOP)/dist/bin
 ifneq "$(OSDIR)" "posix"
 	cp -rf $(TOP)/src/bin/$(OSDIR) $(TOP)/dist/bin
@@ -127,13 +126,15 @@ UPFIX2=../../tarballs/$(PREFIX)
 # The suffix for the platform specific version
 SUFFIX=$(OSDIR)-$(MACHDIR)-$(DOTVER)
 
-tarballs:
-	-rm -rf $(TOP)/tarballs
-	mkdir -p $(TOP)/tarballs
+fixnewlines:
 	# We now just normalize all newlines, regardless of target
 	# platform. 
 	$(STLE) $(TOP)/src/esrc/scripts/newlines.e \
 		--unix --onlyKnown $(TOP)/export
+
+tarballs: fixnewlines
+	-rm -rf $(TOP)/tarballs
+	mkdir -p $(TOP)/tarballs
 	# There is now just one source distribution
 	(cd $(TOP)/export; tar czf $(UPFIX1)-src-$(DOTVER).tar.gz e)
 ifneq "$(OSDIR)" "posix"
@@ -262,6 +263,11 @@ _setup:
 # Actually make a full blown release
 #
 publish: ckversion draft tarballs release
+
+zeroinstall:
+	cp -r ${TOP}/src ${BUILDDIR}/src
+	make -C ${BUILDDIR}/src draft fixnewlines
+	cp -r ${BUILDDIR}/export/puredist/* ${DISTDIR}
 
 fix:
 	(cd jsrc/com/hp/orc; make fix)

@@ -17,7 +17,6 @@ install:
 	cp rune rune-template.txt devrune-template.txt $(TOP)/dist/
 	cp rune-bat-template.txt $(TOP)/dist/
 	cp eprops-template.txt $(SLFTTFT) $(TOP)/dist/
-	cp 0install/e-core.xml $(TOP)/dist/0install/
 	cp README.txt updoc-hash-cache.txt $(TOP)/dist/
 	cp inst-e.bash $(TOP)/dist/
 	$(STLE) --help > $(TOP)/dist/rune-help.txt
