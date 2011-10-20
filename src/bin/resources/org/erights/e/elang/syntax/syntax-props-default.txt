@@ -393,6 +393,14 @@ e.enable.thunk=allow
 
 e.enable.hard-when=allow
 
+
+################ New as of 0.9.4 #######################
+
+# If enabled, the promise for the result of a when block resolves to the
+# returned value, or null if there is no return statement. If disabled,
+# it resolves to the last expression in the block.
+e.enable.easy-when-binds-return=allow
+
 ################ Discontinued Switches ####################
 
 

@@ -1860,6 +1860,10 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
         if (null != optFinally) {
             optFinally = forValue(optFinally, StaticScope.EmptyScope);
         }
+
+	boolean bindReturn = null != (Boolean)optTake(tails,"bindReturn") ||
+			     (ConstMap.testProp(myProps, "e.enable.easy-when-binds-return"));
+
         EExpr result = whenList(optExprs(exprs),
                                 (Pattern[])optTake(tails, "oName"),
                                 poser,
@@ -1870,7 +1874,7 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
                                 body1,
                                 optCatches,
                                 optFinally,
-                                null != (Boolean)optTake(tails,"bindReturn"));
+				bindReturn);
         T.require(tails.size() == 0, "internal: unconsumed attributes");
         return result;
     }
