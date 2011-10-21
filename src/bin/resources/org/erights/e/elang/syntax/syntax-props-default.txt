@@ -401,6 +401,12 @@ e.enable.hard-when=allow
 # it resolves to the last expression in the block.
 e.enable.easy-when-binds-return=allow
 
+# The pattern in a for-loop must match every item or an error is thrown.
+# If on the 'match' keyword is needed before the pattern if non-matches
+# should be skipped. e.g.
+#   for match [a, b] in list { ... }
+e.enable.for-must-match=allow
+
 ################ Discontinued Switches ####################
 
 

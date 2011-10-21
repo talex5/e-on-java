@@ -641,7 +641,7 @@ test:
  *
  */
 forExpr:
-        FOR iterPattern IN iterable body optHandler
+        FOR matchIterPattern IN iterable body optHandler
                                                 { $$ = b.forx($2,$4,$5,$6); }
  |      WHEN iterPattern IN iterable body       { b.reserved($3,"when-in"); }
  ;
@@ -746,6 +746,12 @@ map:
 /**
  * 'for pattern in' expands to 'for _ => pattern in'
  */
+matchIterPattern:
+	      iterPattern		{ $$ = $1; }
+ |	MATCH iterPattern		{ b.pocket($1,"for-must-match");
+ 					  $$ = ((Assoc) $2).withMatch(); }
+ ;
+
 iterPattern:
                        pattern          { $$ = b.assoc(b.ignore(), $1); }
  |      pattern MapsTo pattern          { $$ = b.assoc($1, $3); }

@@ -929,25 +929,41 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
         ensureCommutes(key.staticScope().add(value.staticScope()),
                        coll.staticScope());
 
-        MsgPatt mpatt = methHead(NO_POSER,
-                                 "run",
-                                 list(finalPattern(kTemp),
-                                      finalPattern(vTemp)),
-                                 null);
+        boolean onlyIfMatch = patterns.match() || !ConstMap.testProp(myProps, "e.enable.for-must-match");
 
-        EExpr body = sequence(call(REQUIRE,
-                                   "run",
-                                   list(noun(fTemp), literal(BAD_FOR))),
-                              ifx(condAnd(matchBind(noun(kTemp),
+        MsgPatt mpatt;
+        EExpr innerBody = escape(finalPattern("__continue"),
+                                         sequence(bodyExpr, NULL),
+                                         null);
+        EExpr binding;
+
+        if (onlyIfMatch) {
+            mpatt = methHead(NO_POSER,
+                    "run",
+                    list(finalPattern(kTemp),
+                        finalPattern(vTemp)),
+                    null);
+            binding = ifx(condAnd(matchBind(noun(kTemp),
                                                     NO_POSER,
                                                     key),
                                           NO_POSER,
                                           matchBind(noun(vTemp),
                                                     NO_POSER,
                                                     value)),
-                                  escape(finalPattern("__continue"),
-                                         sequence(bodyExpr, NULL),
-                                         null)));
+                                  innerBody);
+        } else {
+            mpatt = methHead(NO_POSER,
+                    "run",
+                    list(key, value),
+                    null);
+            binding = innerBody;
+        }
+
+        EExpr body = sequence(call(REQUIRE,
+                                   "run",
+                                   list(noun(fTemp), literal(BAD_FOR))),
+                              binding
+                              );
 
         EExpr closure = object(" For-loop body ",
                                ignoreOName(),

@@ -32,9 +32,20 @@ class Assoc {
 
     private final Object myValue;
 
+    /** Indicates that the "match" keyword was used, indicating that only
+      * matches should be processed. e.g.
+      * for match [a, b] in list { ... }
+      */
+    private final boolean myMatch;
+
     Assoc(Object key, Object value) {
+        this(key, value, false);
+    }
+
+    Assoc(Object key, Object value, boolean match) {
         myKey = key;
         myValue = value;
+        myMatch = match;
     }
 
     public Object key() {
@@ -43,5 +54,13 @@ class Assoc {
 
     public Object value() {
         return myValue;
+    }
+
+    public boolean match() {
+        return myMatch;
+    }
+
+    public Assoc withMatch() {
+        return new Assoc(myKey, myValue, true);
     }
 }
