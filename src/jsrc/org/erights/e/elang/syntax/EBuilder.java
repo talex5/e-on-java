@@ -294,6 +294,17 @@ public interface EBuilder extends BaseEBuilder {
     EExpr listComprehension(Object poser, Object exprList, Object assoc, Object collExpr);
 
     /**
+     * The map comprehension has the following expansion:
+     * <pre>
+     * [kExpr =&gt; vExpr for [kPattern =&gt;] vPattern in collExpr]</pre>
+     * expands to
+     * <pre>
+     * __makeMap.fromMapComprehension(def _(key, value) { return [kExpr, vExpr] }, collExpr)
+     * </pre>
+     */
+    EExpr mapComprehension(Object poser, Object kExpr, Object vExpr, Object assoc, Object collExpr);
+
+    /**
      * Implements the "accumulator" syntax.
      * <p/>
      * The "accumulator" syntax has most of the advantages of list

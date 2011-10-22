@@ -14,3 +14,24 @@
 
 ? [x for x:int in [1,2,"a"]]
 # problem: <ClassCastException: String doesn't coerce to an int>
+
+? [2 * k => 3 * v for k => v in list]
+# value: [0 => 3, 2 => 6, 4 => 9]
+
+? def map := ["alice" => 50, "bob" => 60]
+? [v => k for k => v in map]
+# value: [50 => "alice", 60 => "bob"]
+
+? def map := ["alice" => 50, "bob" => 50]
+? [v => k for k => v in map]
+# problem: <IllegalArgumentException: 50 already in map>
+
+? var store := null
+? def iter { to iterate(cb) { store := cb } }
+? [x => x for x in iter]
+# value: [].asMap()
+? store(1, 2)
+# problem: map comprehension expression is finished
+
+? [x for x:int in [1,2,"a"]]
+# problem: <ClassCastException: String doesn't coerce to an int>

@@ -932,6 +932,31 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
         return call(MAKE_LIST, poser, "fromListComprehension", new Object[] {closure, coll});
     }
 
+    public EExpr mapComprehension(Object poser, Object kExpr, Object vExpr, Object assoc, Object collExpr) {
+        EExpr keyExpr = forValue(kExpr, StaticScope.EmptyScope);
+        EExpr valueExpr = forValue(vExpr, StaticScope.EmptyScope);
+        EExpr bodyExpr = tuple(new Object[] {keyExpr, valueExpr});
+
+        Assoc patterns = (Assoc)assoc;
+        Pattern key = (Pattern)patterns.key();
+        Pattern value = (Pattern)patterns.value();
+
+        MsgPatt mpatt = methHead(NO_POSER,
+                    "run",
+                    list(key, value),
+                    null);
+
+        EExpr closure = object(" Map-comprehension body ",
+                               ignoreOName(),
+                               null,        // super
+                               AuditorExprs.NO_AUDITORS,
+                               methScriptDecl(mpatt, bodyExpr, false));
+
+        EExpr coll = forValue(collExpr, bodyExpr.staticScope());
+
+        return call(MAKE_MAP, poser, "fromMapComprehension", new Object[] {closure, coll});
+    }
+
     /*
      *
      */

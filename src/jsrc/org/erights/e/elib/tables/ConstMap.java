@@ -21,6 +21,7 @@ Contributor(s): ______________________________________.
 
 import org.erights.e.elib.base.ValueThunk;
 import org.erights.e.elib.oldeio.TextWriter;
+import org.erights.e.elib.prim.E;
 import org.erights.e.elib.prim.StaticMaker;
 import org.erights.e.elib.serial.JOSSPassByConstruction;
 import org.erights.e.elib.util.ArityMismatchException;
@@ -184,6 +185,29 @@ public abstract class ConstMap extends EMap
     static public ConstMap fromColumns(ConstList keys, ConstList vals)
       throws ArityMismatchException {
         return FlexMap.fromColumns(keys, vals).snapshot();
+    }
+
+    static public ConstMap fromMapComprehension(final Object map, Object iterable) {
+        final boolean[] enabled = new boolean[] {true};
+        final FlexMap flexMap = new FlexMapImpl();
+
+        E.call(iterable, "iterate", new AssocFunc() {
+            public void run(Object key, Object value) {
+                if (enabled[0] != true) {
+                    throw new RuntimeException("map comprehension expression is finished");
+                }
+                Object result = E.call(map, "run", key, value);
+                Object[] pair = (Object[]) E.as(result, Object[].class);
+                if (pair.length != 2) {
+                    throw new RuntimeException("not a pair: " + result);
+                }
+                flexMap.put(pair[0], pair[1], true);
+            }
+        });
+
+        enabled[0] = false;
+
+        return flexMap.snapshot();
     }
 
     /**
