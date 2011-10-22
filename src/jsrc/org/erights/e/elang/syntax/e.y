@@ -537,6 +537,7 @@ prim:
 
  |      parenExpr
  |      '[' exprList ']'                        { $$ = b.tuple($2); }
+ |      '[' eExpr FOR iterPattern IN iterable ']'      { $$ = b.listComprehension($1,$2,$4,$6); }
  |      '[' maps ']'                            { $$ = b.map($2); }
 
  |      body                                    { $$ = b.hide($1); }

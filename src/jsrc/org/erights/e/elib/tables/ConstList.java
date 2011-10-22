@@ -20,6 +20,7 @@ Contributor(s): ______________________________________.
 */
 
 import org.erights.e.elib.oldeio.TextWriter;
+import org.erights.e.elib.slot.SimpleSlot;
 import org.erights.e.elib.prim.E;
 import org.erights.e.elib.prim.MirandaMethods;
 import org.erights.e.elib.prim.StaticMaker;
@@ -90,6 +91,24 @@ public abstract class ConstList extends EList
      */
     static public ConstList fromArray(Object oldArray, int start, int bound) {
         return new ConstListImpl(ArrayHelper.slice(oldArray, start, bound));
+    }
+
+    static public ConstList fromListComprehension(final Object map, Object iterable) {
+        final boolean[] enabled = new boolean[] {true};
+        final FlexList list = new FlexListImpl(0);
+
+        E.call(iterable, "iterate", new AssocFunc() {
+            public void run(Object key, Object value) {
+                if (enabled[0] != true) {
+                    throw new RuntimeException("list comprehension expression is finished");
+                }
+                list.push(E.call(map, "run", key, value));
+            }
+        });
+
+        enabled[0] = false;
+
+        return list.snapshot();
     }
 
     /**

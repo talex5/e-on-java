@@ -1,0 +1,16 @@
+? def list := [1, 2, 3]
+? [2 * x for x in list]
+# value: [2, 4, 6]
+
+? [a for x in list]
+# problem: Failed: Undefined variable: a
+
+? var store := null
+? def iter { to iterate(cb) { store := cb } }
+? [x for x in iter]
+# value: []
+? store(1, 2)
+# problem: list comprehension expression is finished
+
+? [x for x:int in [1,2,"a"]]
+# problem: <ClassCastException: String doesn't coerce to an int>

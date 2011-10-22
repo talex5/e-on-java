@@ -909,6 +909,29 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
         return call(ejNoun, NO_POSER, "run", list(valExpr));
     }
 
+    public EExpr listComprehension(Object poser, Object expr, Object assoc, Object collExpr) {
+        EExpr bodyExpr = forValue(expr, StaticScope.EmptyScope);
+
+        Assoc patterns = (Assoc)assoc;
+        Pattern key = (Pattern)patterns.key();
+        Pattern value = (Pattern)patterns.value();
+
+        MsgPatt mpatt = methHead(NO_POSER,
+                    "run",
+                    list(key, value),
+                    null);
+
+        EExpr closure = object(" List-comprehension body ",
+                               ignoreOName(),
+                               null,        // super
+                               AuditorExprs.NO_AUDITORS,
+                               methScriptDecl(mpatt, bodyExpr, false));
+
+        EExpr coll = forValue(collExpr, bodyExpr.staticScope());
+
+        return call(MAKE_LIST, poser, "fromListComprehension", new Object[] {closure, coll});
+    }
+
     /*
      *
      */

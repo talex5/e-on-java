@@ -283,6 +283,17 @@ public interface EBuilder extends BaseEBuilder {
     EExpr forx(Object assoc, Object collExpr, Object mBody, Object optCatcher);
 
     /**
+     * The list comprehension has the following expansion:
+     * <pre>
+     * [expr for [kPattern =&gt;] vPattern in collExpr]</pre>
+     * expands to
+     * <pre>
+     * __makeList.fromListComprehension(def _(key, value) { return expr }, collExpr)
+     * </pre>
+     */
+    EExpr listComprehension(Object poser, Object exprList, Object assoc, Object collExpr);
+
+    /**
      * Implements the "accumulator" syntax.
      * <p/>
      * The "accumulator" syntax has most of the advantages of list
