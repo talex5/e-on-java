@@ -537,9 +537,9 @@ prim:
 
  |      parenExpr
  |      '[' exprList ']'                        { $$ = b.tuple($2); }
- |      '[' eExpr FOR iterPattern IN iterable ']'      { $$ = b.listComprehension($1,$2,$4,$6); }
+ |      '[' eExpr FOR iterPattern IN iterable forIf ']'      { $$ = b.listComprehension($1,$2,$4,$6,$7); }
  |      '[' maps ']'                            { $$ = b.map($2); }
- |      '[' eExpr MapsTo eExpr FOR iterPattern IN iterable ']'      { $$ = b.mapComprehension($1,$2,$4,$6,$8); }
+ |      '[' eExpr MapsTo eExpr FOR iterPattern IN iterable forIf ']'      { $$ = b.mapComprehension($1,$2,$4,$6,$8,$9); }
 
  |      body                                    { $$ = b.hide($1); }
  |      ESCAPE pattern body optHandler          { $$ = b.escape($2,$3,$4); }
@@ -646,6 +646,14 @@ forExpr:
         FOR matchIterPattern IN iterable body optHandler
                                                 { $$ = b.forx($2,$4,$5,$6); }
  |      WHEN iterPattern IN iterable body       { b.reserved($3,"when-in"); }
+ ;
+
+/**
+ * The optional trailing "if expr" in a list comprehension.
+ */
+forIf:
+     /* empty */		{ $$ = null; }
+ |   IF eExpr			{ $$ = $2; }
  ;
 
 /**

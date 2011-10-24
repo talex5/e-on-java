@@ -197,11 +197,13 @@ public abstract class ConstMap extends EMap
                     throw new RuntimeException("map comprehension expression is finished");
                 }
                 Object result = E.call(map, "run", key, value);
-                Object[] pair = (Object[]) E.as(result, Object[].class);
-                if (pair.length != 2) {
-                    throw new RuntimeException("not a pair: " + result);
-                }
-                flexMap.put(pair[0], pair[1], true);
+		if (result != null) {
+			Object[] pair = (Object[]) E.as(result, Object[].class);
+			if (pair.length != 2) {
+			    throw new RuntimeException("not a pair: " + result);
+			}
+			flexMap.put(pair[0], pair[1], true);
+		}
             }
         });
 

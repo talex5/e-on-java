@@ -2,6 +2,12 @@
 ? [2 * x for x in list]
 # value: [2, 4, 6]
 
+? [2 * x for x in list if x > 1]
+# value: [4, 6]
+
+? [f for x in [1, "hi", 3] if x =~ f :float64]
+# value: [1.0, 3.0]
+
 ? [a for x in list]
 # problem: Failed: Undefined variable: a
 
@@ -25,6 +31,9 @@
 ? def map := ["alice" => 50, "bob" => 50]
 ? [v => k for k => v in map]
 # problem: <IllegalArgumentException: 50 already in map>
+
+? [k => rest for k => v in map if k =~ `a@rest`]
+# value: ["alice" => "lice"]
 
 ? var store := null
 ? def iter { to iterate(cb) { store := cb } }

@@ -113,6 +113,8 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
 
     static private final EExpr MAKE_ORDERED_SPACE = noun("__makeOrderedSpace");
 
+    static private final EExpr MAKE_FINAL_SLOT = noun("__makeFinalSlot");
+
     static private final EExpr GUARD = noun("Guard");
 
     static private final EExpr REQUIRE = noun("require");
@@ -909,8 +911,12 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
         return call(ejNoun, NO_POSER, "run", list(valExpr));
     }
 
-    public EExpr listComprehension(Object poser, Object expr, Object assoc, Object collExpr) {
-        EExpr bodyExpr = forValue(expr, StaticScope.EmptyScope);
+    public EExpr listComprehension(Object poser, Object expr, Object assoc, Object collExpr, Object optIf) {
+        EExpr bodyExpr = call(MAKE_FINAL_SLOT, NO_POSER, "run", new Object[] {forValue(expr, StaticScope.EmptyScope)});
+
+	if (optIf != null) {
+		bodyExpr = ifx(optIf, bodyExpr);
+	}
 
         Assoc patterns = (Assoc)assoc;
         Pattern key = (Pattern)patterns.key();
@@ -932,10 +938,14 @@ public class ENodeBuilder extends BaseENodeBuilder implements EBuilder {
         return call(MAKE_LIST, poser, "fromListComprehension", new Object[] {closure, coll});
     }
 
-    public EExpr mapComprehension(Object poser, Object kExpr, Object vExpr, Object assoc, Object collExpr) {
+    public EExpr mapComprehension(Object poser, Object kExpr, Object vExpr, Object assoc, Object collExpr, Object optIf) {
         EExpr keyExpr = forValue(kExpr, StaticScope.EmptyScope);
         EExpr valueExpr = forValue(vExpr, StaticScope.EmptyScope);
         EExpr bodyExpr = tuple(new Object[] {keyExpr, valueExpr});
+
+	if (optIf != null) {
+		bodyExpr = ifx(optIf, bodyExpr);
+	}
 
         Assoc patterns = (Assoc)assoc;
         Pattern key = (Pattern)patterns.key();

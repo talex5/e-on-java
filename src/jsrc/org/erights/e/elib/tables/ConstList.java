@@ -20,6 +20,7 @@ Contributor(s): ______________________________________.
 */
 
 import org.erights.e.elib.oldeio.TextWriter;
+import org.erights.e.elib.slot.FinalSlot;
 import org.erights.e.elib.slot.SimpleSlot;
 import org.erights.e.elib.prim.E;
 import org.erights.e.elib.prim.MirandaMethods;
@@ -102,7 +103,10 @@ public abstract class ConstList extends EList
                 if (enabled[0] != true) {
                     throw new RuntimeException("list comprehension expression is finished");
                 }
-                list.push(E.call(map, "run", key, value));
+		Object optResult = E.call(map, "run", key, value);
+		if (optResult != null) {
+			list.push(((FinalSlot) optResult).get());
+		}
             }
         });
 

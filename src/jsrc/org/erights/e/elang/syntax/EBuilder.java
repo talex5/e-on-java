@@ -285,24 +285,24 @@ public interface EBuilder extends BaseEBuilder {
     /**
      * The list comprehension has the following expansion:
      * <pre>
-     * [expr for [kPattern =&gt;] vPattern in collExpr]</pre>
+     * [expr for [kPattern =&gt;] vPattern in collExpr [if optIf]]</pre>
      * expands to
      * <pre>
-     * __makeList.fromListComprehension(def _(key, value) { return expr }, collExpr)
+     * __makeList.fromListComprehension(def _(key, value) { if (optIf) { return __makeFinalSlot(expr) } }, collExpr)
      * </pre>
      */
-    EExpr listComprehension(Object poser, Object exprList, Object assoc, Object collExpr);
+    EExpr listComprehension(Object poser, Object exprList, Object assoc, Object collExpr, Object optIf);
 
     /**
      * The map comprehension has the following expansion:
      * <pre>
-     * [kExpr =&gt; vExpr for [kPattern =&gt;] vPattern in collExpr]</pre>
+     * [kExpr =&gt; vExpr for [kPattern =&gt;] vPattern in collExpr [if optIf]]</pre>
      * expands to
      * <pre>
-     * __makeMap.fromMapComprehension(def _(key, value) { return [kExpr, vExpr] }, collExpr)
+     * __makeMap.fromMapComprehension(def _(kPattern, vPattern) { if (optIf) { return [kExpr, vExpr] } }, collExpr)
      * </pre>
      */
-    EExpr mapComprehension(Object poser, Object kExpr, Object vExpr, Object assoc, Object collExpr);
+    EExpr mapComprehension(Object poser, Object kExpr, Object vExpr, Object assoc, Object collExpr, Object optIf);
 
     /**
      * Implements the "accumulator" syntax.
